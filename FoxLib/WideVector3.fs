@@ -3,9 +3,12 @@
 open FoxLib.Core
 
 /// <summary>
-/// Read from a binary representation.
+/// Read a WideVector3.
 /// <summary>
-let Read readSingle readUInt16 = {
+/// <param name="readSingle">Function to read a float32.</param>
+/// <param name="readSingle">Function to read a uint16.</param>
+/// <returns>The parsed WideVector3.</returns>
+let internal Read readSingle readUInt16 = {
     X = readSingle();
     Y = readSingle();
     Z = readSingle();
@@ -14,8 +17,10 @@ let Read readSingle readUInt16 = {
 }
 
 /// <summary>
-/// Write to a binary representation.
+/// Write a WideVector3.
 /// </summary>
+/// <param name="writeSingle">Function to write a float32.</param>
+/// <param name="writeUInt16">Function to write a uint16.</param>
 let Write (vector : WideVector3) writeSingle writeUInt16 =
     writeSingle vector.X
     writeSingle vector.Y

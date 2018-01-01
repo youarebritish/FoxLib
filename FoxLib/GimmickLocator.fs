@@ -7,7 +7,7 @@ open FoxLib.Core
 /// </summary>
 /// <remarks>
 /// These locators have no name, so how are they referenced?
-/// </remark>
+/// </remarks>
 type public PowerCutAreaGimmickLocator = {
     Position : Vector4
     Rotation : Quaternion
