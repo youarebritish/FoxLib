@@ -25,9 +25,9 @@ type private GimmickLocatorSetFormat =
 /// </summary>
 /// <param name="readSingle">Function to read a float32.</param>
 /// <returns>The parsed transform as a tuple of position * rotation.
-let private readUnscaledTransform readSingle =
-    let position = Vector4.Read readSingle
-    let rotation = Quaternion.Read readSingle
+let private readUnscaledTransform readVector4 readQuaternion =
+    let position = readVector4()
+    let rotation = readQuaternion()
     position, rotation
 
 /// <summary>
@@ -36,10 +36,10 @@ let private readUnscaledTransform readSingle =
 /// <param name="readSingle">Function to read a float32.</param>
 /// <param name="readUInt16">Function to read a uint16.</param>
 /// <returns>The parsed transform as a tuple of position * rotation * scale.
-let private readScaledTransform readSingle readUInt16 =
-    let position = Vector4.Read readSingle
-    let rotation = Quaternion.Read readSingle
-    let scale = WideVector3.Read readSingle readUInt16
+let private readScaledTransform readVector4 readQuaternion readWideVector3 =
+    let position = readVector4()
+    let rotation = readQuaternion()
+    let scale = readWideVector3()
     position, rotation, scale
 
 /// <summary>
@@ -58,27 +58,27 @@ let private readLocatorMetadata readUInt32 =
 /// <summary>
 /// Reads PowerCutAreaGimmickLocators from lba format.
 /// </summary>
-/// <param name="readSingle">Function to read a float32.</param>
+/// <param name="readTransform">Function to read a scaled locator transform.</param>
 /// <param name="locatorCount">Number of locators.</param>
 /// <returns>The parsed PowerCutAreaGimmickLocators.</returns>
-let private readPowerCutAreaGimmickLocators readSingle locatorCount =
+let private readPowerCutAreaGimmickLocators readTransform locatorCount =
     [|1..locatorCount|]
-    |> Array.map(fun _ -> readUnscaledTransform readSingle)
-    |> Array.map(fun transform -> { Position = fst transform;
-                                    Rotation = snd transform })
+    |> Array.map(fun _ ->
+        let position, rotation = readTransform()
+        { Position = position; Rotation = rotation })
 
 /// <summary>
 /// Reads NamedGimmickLocators from lba format.
 /// </summary>
-/// <param name="readSingle">Function to read a float32.</param>
-/// <param name="readUInt32">Function to read a uint32.</param>
+/// <param name="readTransform">Function to read a scaled locator transform.</param>
+/// <param name="readMetadata">Function to read a locator's metadata footer entry.</param>
 /// <param name="locatorCount">Number of locators.</param>
 /// <returns>The parsed NamedGimmickLocators.</returns>
-let private readNamedGimmickLocators readSingle readUInt32 locatorCount =
+let private readNamedGimmickLocators readTransform readMetadata locatorCount =
     [|1..locatorCount|]
-    |> Array.map(fun _ -> readUnscaledTransform readSingle)
+    |> Array.map(fun _ -> readTransform())
     |> Array.map(fun transform -> 
-        let metadata = readLocatorMetadata readUInt32
+        let metadata = readMetadata()
         { Position = fst transform;
         Rotation = snd transform;
         LocatorName = fst metadata;
@@ -87,16 +87,15 @@ let private readNamedGimmickLocators readSingle readUInt32 locatorCount =
 /// <summary>
 /// Reads ScaledGimmickLocators from lba format.
 /// </summary>
-/// <param name="readSingle">Function to read a float32.</param>
-/// <param name="readUInt16">Function to read a uint16.</param>
-/// <param name="readUInt32">Function to read a uint32.</param>
+/// <param name="readTransform">Function to read a scaled locator transform.</param>
+/// <param name="readMetadata">Function to read a locator's metadata footer entry.</param>
 /// <param name="locatorCount">Number of locators.</param>
 /// <returns>The parsed ScaledGimmickLocators.</returns>
-let private readScaledGimmickLocators readSingle readUInt16 readUInt32 locatorCount =
+let private readScaledGimmickLocators readTransform readMetadata locatorCount =
     [|1..locatorCount|]
-    |> Array.map(fun _ -> readScaledTransform readSingle readUInt16)
+    |> Array.map(fun _ -> readTransform())
     |> Array.map(fun transform -> 
-        let metadata = readLocatorMetadata readUInt32
+        let metadata = readMetadata()
         let position, rotation, scale = transform
         { Position = position;
         Rotation = rotation;
@@ -107,18 +106,27 @@ let private readScaledGimmickLocators readSingle readUInt16 readUInt32 locatorCo
 /// <summary>
 /// Parses the body of a GimmickLocatorSet from lba format.
 /// </summary>
-/// <param name="readSingle">Function to read a float32.</param>
-/// <param name="readUInt16">Function to read a uint16.</param>
+/// <param name="readVector4">Function to read a Vector4.</param>
+/// <param name="readQuaternion">Function to read a Quaternion.</param>
+/// <param name="readWideVector3">Function to read a WideVector3.</param>
 /// <param name="readUInt32">Function to read a uint32.</param>
 /// <param name="format">Format of the GimmickLocatorSet.</param>
 /// <param name="locatorCount">Number of locators.</param>
 /// <returns>The parsed GimmickLocatorSet.</returns>
 /// <exception cref="InvalidDataException">Raised if the format is unrecognized.</exception>
-let private readGimmickLocatorSetBody readSingle readUInt16 readUInt32 format locatorCount =
+let private readGimmickLocatorSetBody readVector4 readQuaternion readWideVector3 readUInt32 format locatorCount =
     match format with
-    | GimmickLocatorSetFormat.PowerCutArea -> PowerCutAreaGimmickLocatorSet(readPowerCutAreaGimmickLocators readSingle locatorCount)
-    | GimmickLocatorSetFormat.Named -> NamedGimmickLocatorSet(readNamedGimmickLocators readSingle readUInt32 locatorCount)
-    | GimmickLocatorSetFormat.Scaled -> ScaledGimmickLocatorSet(readScaledGimmickLocators readSingle readUInt16 readUInt32 locatorCount)
+    | GimmickLocatorSetFormat.PowerCutArea ->
+        let readTransform = fun () -> readUnscaledTransform readVector4 readQuaternion
+        PowerCutAreaGimmickLocatorSet(readPowerCutAreaGimmickLocators readTransform locatorCount)
+    | GimmickLocatorSetFormat.Named ->
+        let readTransform = fun () -> readUnscaledTransform readVector4 readQuaternion
+        let readMetadata = fun () -> readLocatorMetadata readUInt32
+        NamedGimmickLocatorSet(readNamedGimmickLocators readTransform readMetadata locatorCount)
+    | GimmickLocatorSetFormat.Scaled ->
+        let readTransform = fun () -> readScaledTransform readVector4 readQuaternion readWideVector3
+        let readMetadata = fun () -> readLocatorMetadata readUInt32
+        ScaledGimmickLocatorSet(readScaledGimmickLocators readTransform readMetadata locatorCount)
     | _ -> raise (new InvalidDataException("The file is not an .lba file or is an unrecognized format."))
                   
 /// <summmary>
@@ -134,7 +142,11 @@ let public Read readSingle readUInt16 readUInt32 readInt32 skipBytes =
     let locatorCount = readInt32()
     let format = readInt32()  |> enum<GimmickLocatorSetFormat>
     skipBytes 8 |> ignore
-    readGimmickLocatorSetBody readSingle readUInt16 readUInt32 format locatorCount
+
+    let readVector4 = fun () -> Vector4.Read readSingle
+    let readQuaternion = fun () -> Quaternion.Read readSingle
+    let readWideVector3 = fun () -> WideVector3.Read readSingle readUInt16    
+    readGimmickLocatorSetBody readVector4 readQuaternion readWideVector3 readUInt32 format locatorCount
 
 /// <summary>
 /// Writes a GimmickLocatorSet's header.
@@ -143,7 +155,7 @@ let public Read readSingle readUInt16 readUInt32 readInt32 skipBytes =
 /// <param name="writeEmptyBytes"></param>
 /// <param name="locatorCount"></param>
 /// <param name="format"></param>
-let private writeGimmickLocatorSetHeader writeInt32 (writeEmptyBytes : int -> unit) locatorCount format =
+let private writeGimmickLocatorSetHeader writeInt32 writeEmptyBytes locatorCount format =
     writeInt32 locatorCount
     LanguagePrimitives.EnumToValue format |> writeInt32
     writeEmptyBytes 8
@@ -151,9 +163,9 @@ let private writeGimmickLocatorSetHeader writeInt32 (writeEmptyBytes : int -> un
 /// <summary>
 /// Writes a PowerCutAreaGimmickLocator or NamedGimmickLocator's transform.
 /// </summary>
+/// <param name="writeSingle">Function to write a float32.</param>
 /// <param name="position">The locator's position.</param>
 /// <param name="rotation">The locator's rotation.</param>
-/// <param name="writeSingle">Function to write a float32.</param>
 let private writeUnscaledGimmickLocatorTransform writeSingle position rotation =
     Vector4.Write position writeSingle
     Quaternion.Write rotation writeSingle
@@ -161,12 +173,12 @@ let private writeUnscaledGimmickLocatorTransform writeSingle position rotation =
 /// <summary>
 /// Writes a ScaledGimmickLocator's transform.
 /// </summary>
+/// <param name="writeSingle">Function to write a float32.</param>
+/// <param name="writeUInt16">Function to write a uint16.</param>
 /// <param name="position">The locator's position.</param>
 /// <param name="rotation">The locator's rotation.</param>
 /// <param name="scale">The locator's scale.</param>
-/// <param name="writeSingle">Function to write a float32.</param>
-/// <param name="writeUInt16">Function to write a uint16.</param>
-let private writeScaledGimmickLocatorTransform position rotation scale writeSingle writeUInt16 =
+let private writeScaledGimmickLocatorTransform writeSingle writeUInt16 position rotation scale =
     writeUnscaledGimmickLocatorTransform writeSingle position rotation
     WideVector3.Write scale writeSingle writeUInt16
 
@@ -186,53 +198,38 @@ let private writeGimmickLocatorMetadata writeUInt32 (locatorName, dataSetName) =
 /// <summary>
 /// Writes a PowerCutAreaGimmickLocatorSet to lba format.
 /// </summary>
-/// <param name="writeSingle">Function to write a float32.</param>
-/// <param name="writeInt32">Function to write a int32.</param>
-/// <param name="writeEmptyBytes">Function to write a number of empty bytes.</param>
+/// <param name="writeTransform">Function to write an unscaled transform.</param>
 /// <param name="locators">ScaledGimmickLocatorSet to write.</param>
-let private writePowerCutAreaGimmickLocatorSet writeSingle writeInt32 writeEmptyBytes locators =
-    let locatorCount = Array.length locators
-    writeGimmickLocatorSetHeader writeInt32 writeEmptyBytes locatorCount GimmickLocatorSetFormat.PowerCutArea
-    locators 
+let private writePowerCutAreaGimmickLocatorSet writeTransform locators =
+    locators
     |> Array.iter (fun (locator : PowerCutAreaGimmickLocator) ->
-        writeUnscaledGimmickLocatorTransform writeSingle locator.Position locator.Rotation)
+        writeTransform locator.Position locator.Rotation)
 
 /// <summary>
 /// Writes a NamedGimmickLocatorSet to lba format.
 /// </summary>
-/// <param name="writeSingle">Function to write a float32.</param>
-/// <param name="writeInt32">Function to write a int32.</param>
-/// <param name="writeUInt32">Function to write a uint32.</param>
-/// <param name="writeEmptyBytes">Function to write a number of empty bytes.</param>
-/// <param name="locators">ScaledGimmickLocatorSet to write.</param>
-let private writeNamedGimmickLocatorSet writeSingle writeInt32 writeUInt32 writeEmptyBytes locators =
-    let locatorCount = Array.length locators
-    writeGimmickLocatorSetHeader writeInt32 writeEmptyBytes locatorCount GimmickLocatorSetFormat.Named
+/// <param name="writeTransform">Function to write an unscaled transform.</param>
+/// <param name="writeMetadata">Function to write a locator's metadata footer entry.</param>
+/// <param name="locators">NamedGimmickLocatorSet to write.</param>
+let private writeNamedGimmickLocatorSet writeTransform writeMetadata locators =
     locators
     |> Array.map (fun (locator : NamedGimmickLocator) ->
-        writeUnscaledGimmickLocatorTransform writeSingle locator.Position locator.Rotation
+        writeTransform locator.Position locator.Rotation
         locator.LocatorName, locator.DataSetName)
-    |> Array.iter (fun locatorMetadata ->
-        writeGimmickLocatorMetadata writeUInt32 locatorMetadata)
+    |> Array.iter (fun locatorMetadata -> writeMetadata locatorMetadata)
 
 /// <summary>
 /// Writes a ScaledGimmickLocatorSet to lba format.
 /// </summary>
-/// <param name="writeSingle">Function to write a float32.</param>
-/// <param name="writeUInt16">Function to write a uint16.</param>
-/// <param name="writeInt32">Function to write a int32.</param>
-/// <param name="writeUInt32">Function to write a uint32.</param>
-/// <param name="writeEmptyBytes">Function to write a number of empty bytes.</param>
+/// <param name="writeTransform">Function to write an unscaled transform.</param>
+/// <param name="writeMetadata">Function to write a locator's metadata footer entry.</param>
 /// <param name="locators">ScaledGimmickLocatorSet to write.</param>
-let private writeScaledGimmickLocatorSet writeSingle writeUInt16 writeInt32 writeUInt32 writeEmptyBytes locators =
-    let locatorCount = Array.length locators
-    writeGimmickLocatorSetHeader writeInt32 writeEmptyBytes locatorCount GimmickLocatorSetFormat.Scaled
+let private writeScaledGimmickLocatorSet writeTransform writeMetadata locators =
     locators
     |> Array.map (fun (locator : ScaledGimmickLocator) ->
-        writeScaledGimmickLocatorTransform locator.Position locator.Rotation locator.Scale writeSingle writeUInt16
+        writeTransform locator.Position locator.Rotation locator.Scale
         locator.LocatorName, locator.DataSetName)
-    |> Array.iter (fun locatorMetadata ->
-        writeGimmickLocatorMetadata writeUInt32 locatorMetadata)
+    |> Array.iter (fun locatorMetadata -> writeMetadata locatorMetadata)
 
 /// <summary>
 /// Writes a GimmickLocatorSet to lba format.
@@ -244,7 +241,19 @@ let private writeScaledGimmickLocatorSet writeSingle writeUInt16 writeInt32 writ
 /// <param name="writeEmptyBytes">Function to write a number of empty bytes.</param>
 /// <param name="locatorSet">GimmickLocatorSet to write.</param>
 let public Write writeSingle writeUInt16 writeInt32 writeUInt32 writeEmptyBytes locatorSet =
+    let writeHeader = writeGimmickLocatorSetHeader writeInt32 writeEmptyBytes
     match locatorSet with
-    | PowerCutAreaGimmickLocatorSet locators -> writePowerCutAreaGimmickLocatorSet writeSingle writeInt32 writeEmptyBytes (Seq.toArray locators)
-    | NamedGimmickLocatorSet locators -> writeNamedGimmickLocatorSet writeSingle writeInt32 writeUInt32 writeEmptyBytes (Seq.toArray locators)
-    | ScaledGimmickLocatorSet locators -> writeScaledGimmickLocatorSet writeSingle writeUInt16 writeInt32 writeUInt32 writeEmptyBytes (Seq.toArray locators)
+    | PowerCutAreaGimmickLocatorSet locators ->
+        writeHeader (Seq.length locators) GimmickLocatorSetFormat.PowerCutArea
+        let writeTransform = writeUnscaledGimmickLocatorTransform writeSingle
+        writePowerCutAreaGimmickLocatorSet writeTransform (Seq.toArray locators)
+    | NamedGimmickLocatorSet locators ->
+        writeHeader (Seq.length locators) GimmickLocatorSetFormat.Named
+        let writeTransform = writeUnscaledGimmickLocatorTransform writeSingle
+        let writeMetadata = writeGimmickLocatorMetadata writeUInt32
+        writeNamedGimmickLocatorSet writeTransform writeMetadata (Seq.toArray locators)
+    | ScaledGimmickLocatorSet locators ->
+        writeHeader (Seq.length locators) GimmickLocatorSetFormat.Scaled
+        let writeTransform = writeScaledGimmickLocatorTransform writeSingle writeUInt16
+        let writeMetadata = writeGimmickLocatorMetadata writeUInt32
+        writeScaledGimmickLocatorSet writeTransform writeMetadata (Seq.toArray locators)
