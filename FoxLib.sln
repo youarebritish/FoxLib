@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.26430.6
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FoxLib", "FoxLib\FoxLib.fsproj", "{9F70A1E9-5B82-4324-BECF-F5E346581860}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "TestFoxLib", "TestFoxLib\TestFoxLib.fsproj", "{27F8B91F-126B-42B0-9B1C-4895F5470D87}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{9F70A1E9-5B82-4324-BECF-F5E346581860}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9F70A1E9-5B82-4324-BECF-F5E346581860}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9F70A1E9-5B82-4324-BECF-F5E346581860}.Release|Any CPU.Build.0 = Release|Any CPU
+		{27F8B91F-126B-42B0-9B1C-4895F5470D87}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{27F8B91F-126B-42B0-9B1C-4895F5470D87}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{27F8B91F-126B-42B0-9B1C-4895F5470D87}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{27F8B91F-126B-42B0-9B1C-4895F5470D87}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
