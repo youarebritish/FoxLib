@@ -17,7 +17,7 @@ let private createRandomPowerCutAreaGimmickLocator (random : System.Random) =
         
 [<Test>]
 [<Category("GimmickLocatorSet")>]
-let ``empty PowerCutAreaGimmickLocatorSet should be empty when read`` () =
+let ``empty PowerCutAreaGimmickLocatorSet should be empty when read`` =
     let locators = Array.empty
     let locatorSet = PowerCutAreaGimmickLocatorSet(locators)
 
@@ -39,7 +39,7 @@ let ``empty PowerCutAreaGimmickLocatorSet should be empty when read`` () =
 
 [<Test>]
 [<Category("GimmickLocatorSet")>]
-let ``one random PowerCutAreaGimmickLocator should have original value when read`` () =
+let ``one random PowerCutAreaGimmickLocator should have original value when read`` =
     let random = new System.Random()
     let locator = createRandomPowerCutAreaGimmickLocator random
     let locatorSet = PowerCutAreaGimmickLocatorSet([locator])
@@ -64,7 +64,7 @@ let ``one random PowerCutAreaGimmickLocator should have original value when read
     
 [<Test>]
 [<Category("GimmickLocatorSet")>]
-let ``one hundred random PowerCutAreaGimmickLocators should have original values when read`` () =
+let ``one hundred random PowerCutAreaGimmickLocators should have original values when read`` =
     let random = new System.Random()
     let locators = Array.init 100 (fun _ -> createRandomPowerCutAreaGimmickLocator random)
     let locatorSet = PowerCutAreaGimmickLocatorSet(locators)
@@ -98,7 +98,7 @@ let private createRandomNamedGimmickLocator (random : System.Random) =
         
 [<Test>]
 [<Category("GimmickLocatorSet")>]
-let ``empty NamedGimmickLocatorSet should be empty when read`` () =
+let ``empty NamedGimmickLocatorSet should be empty when read`` =
     let locators = Array.empty
     let locatorSet = NamedGimmickLocatorSet(locators)
 
@@ -120,7 +120,7 @@ let ``empty NamedGimmickLocatorSet should be empty when read`` () =
 
 [<Test>]
 [<Category("GimmickLocatorSet")>]
-let ``one random NamedGimmickLocator should have original value when read`` () =
+let ``one random NamedGimmickLocator should have original value when read`` =
     let random = new System.Random()
     let locator = createRandomNamedGimmickLocator random
     let locatorSet = NamedGimmickLocatorSet([locator])
@@ -145,7 +145,7 @@ let ``one random NamedGimmickLocator should have original value when read`` () =
     
 [<Test>]
 [<Category("GimmickLocatorSet")>]
-let ``one hundred random NamedGimmickLocators should have original values when read`` () =
+let ``one hundred random NamedGimmickLocators should have original values when read`` =
     let random = new System.Random()
     let locators = Array.init 100 (fun _ -> createRandomNamedGimmickLocator random)
     let locatorSet = NamedGimmickLocatorSet(locators)
@@ -180,7 +180,7 @@ let private createRandomScaledGimmickLocator (random : System.Random) =
         
 [<Test>]
 [<Category("GimmickLocatorSet")>]
-let ``empty ScaledGimmickLocatorSet should be empty when read`` () =
+let ``empty ScaledGimmickLocatorSet should be empty when read`` =
     let locators = Array.empty
     let locatorSet = ScaledGimmickLocatorSet(locators)
 
@@ -202,7 +202,7 @@ let ``empty ScaledGimmickLocatorSet should be empty when read`` () =
 
 [<Test>]
 [<Category("GimmickLocatorSet")>]
-let ``one random ScaledGimmickLocator should have original value when read`` () =
+let ``one random ScaledGimmickLocator should have original value when read`` =
     let random = new System.Random()
     let locator = createRandomScaledGimmickLocator random
     let locatorSet = ScaledGimmickLocatorSet([locator])
@@ -227,7 +227,7 @@ let ``one random ScaledGimmickLocator should have original value when read`` () 
     
 [<Test>]
 [<Category("GimmickLocatorSet")>]
-let ``one hundred random ScaledGimmickLocators should have original values when read`` () =
+let ``one hundred random ScaledGimmickLocators should have original values when read`` =
     let random = new System.Random()
     let locators = Array.init 100 (fun _ -> createRandomScaledGimmickLocator random)
     let locatorSet = ScaledGimmickLocatorSet(locators)
