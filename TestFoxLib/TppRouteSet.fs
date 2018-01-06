@@ -7,7 +7,7 @@ open NUnit.Framework
 
 [<Test>]
 [<Category("TppRouteSet")>]
-let ``empty TppRouteSet should be empty when read`` =
+let ``empty TppRouteSet should be empty when read`` () =
     let routeSet = { Routes = [] }
     use stream = new MemoryStream()
     use writer = new BinaryWriter(stream)
