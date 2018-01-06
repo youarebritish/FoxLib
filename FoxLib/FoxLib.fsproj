@@ -8,7 +8,7 @@
     <ProjectGuid>9f70a1e9-5b82-4324-becf-f5e346581860</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>FoxLibCore</RootNamespace>
-    <AssemblyName>FoxLibCore</AssemblyName>
+    <AssemblyName>FoxLib</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <TargetFSharpCoreVersion>4.4.1.0</TargetFSharpCoreVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
