@@ -163,6 +163,12 @@ type private ConvertedReadFunctions = {
 /// <param name="rawReadFunctions">Input functions supplied to the Read function.</param>
 /// <returns>The converted functions.</returns>
 let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
+    if rawReadFunctions.ReadInt32 |> isNull then nullArg "ReadInt32"
+    if rawReadFunctions.ReadUInt16 |> isNull then nullArg "ReadUInt16"
+    if rawReadFunctions.ReadUInt32 |> isNull then nullArg "ReadUInt32"
+    if rawReadFunctions.ReadInt32 |> isNull then nullArg "ReadInt32"
+    if rawReadFunctions.SkipBytes |> isNull then nullArg "SkipBytes"
+
     { ConvertedReadFunctions.ReadSingle = rawReadFunctions.ReadSingle.Invoke;
     ReadUInt16 = rawReadFunctions.ReadUInt16.Invoke;
     ReadUInt32 = rawReadFunctions.ReadUInt32.Invoke;
@@ -301,6 +307,12 @@ type private ConvertedWriteFunctions = {
 /// <param name="rawWriteFunctions">Input functions supplied to the Write function.</param>
 /// <returns>The converted functions.</returns>
 let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
+    if rawWriteFunctions.WriteSingle |> isNull then nullArg "WriteSingle"
+    if rawWriteFunctions.WriteUInt16 |> isNull then nullArg "WriteUInt16"
+    if rawWriteFunctions.WriteUInt32 |> isNull then nullArg "WriteUInt32"
+    if rawWriteFunctions.WriteInt32 |> isNull then nullArg "WriteInt32"
+    if rawWriteFunctions.WriteEmptyBytes |> isNull then nullArg "WriteEmptyBytes"
+
     { ConvertedWriteFunctions.WriteSingle = rawWriteFunctions.WriteSingle.Invoke;
     WriteUInt16 = rawWriteFunctions.WriteUInt16.Invoke;
     WriteUInt32 = rawWriteFunctions.WriteUInt32.Invoke;
