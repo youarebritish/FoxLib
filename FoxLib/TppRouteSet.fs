@@ -94,6 +94,52 @@ let public Read (readFunctions : ReadFunctions) =
     let routes = []
     { Routes = routes }
 
+type private RouteDefinition = {
+    NodeOffset : uint32;
+    EventTableOffset : uint32;
+    EventsOffset : uint32;
+    EdgeEventCount : uint16;
+    EventCount : uint16;
+}
+
+type private EventTable = {
+    EventCount : uint16;
+    EdgeEventIndex : uint16;
+}
+
+let private calculateRouteIdsOffset() =
+    28u
+
+let private calculateRouteDefinitionsOffset routeIdsOffset (routeCount : uint16) =
+    routeIdsOffset + (uint32 routeCount * uint32 sizeof<StrCode32Hash>)
+
+let private calculateNodesOffset routeDefinitionsOffset (routeCount : uint16) =
+    routeDefinitionsOffset + (uint32 routeCount * uint32 sizeof<RouteDefinition>)
+
+let private calculateEventTablesOffset nodesOffset (nodeCount : uint16) =
+    nodesOffset + (uint32 nodeCount * uint32 sizeof<Vector3>)
+
+let private calculateEventsOffset eventTablesOffset (nodeCount : uint16) =
+    eventTablesOffset + (uint32 nodeCount * uint32 sizeof<EventTable>)
+
+let private writeHeader writeChar writeVersion writeRouteCount writeOffset routeCount nodeCount =
+    ['R';'O';'U';'T'] |> Seq.iter (fun entry -> writeChar entry)
+    writeVersion()
+    writeRouteCount()
+    
+    // TODO: Find a more elegant way to do this.
+    let routeIdsOffset = calculateRouteIdsOffset()
+    let routeDefinitionsOffset = calculateRouteDefinitionsOffset routeIdsOffset routeCount
+    let nodesOffset = calculateNodesOffset routeDefinitionsOffset routeCount
+    let eventTablesOffset = calculateEventTablesOffset nodesOffset nodeCount
+    let eventsOffset = calculateEventsOffset eventTablesOffset nodeCount
+
+    writeOffset routeIdsOffset
+    writeOffset routeDefinitionsOffset
+    writeOffset nodesOffset
+    writeOffset eventTablesOffset
+    writeOffset eventsOffset
+
 /// <summmary>
 /// Input functions to the Write function.
 /// </summmary>
@@ -149,6 +195,16 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
 /// </summary>
 /// <param name="writeFunctions">Function to write various data types.</param>
 /// <param name="locatorSet">TppRouteSet to write.</param>
-let public Write routeSet (writeFunctions : WriteFunctions) =
+let public Write (routeSet : RouteSet) (writeFunctions : WriteFunctions) =
     let convertedWriteFunctions = convertWriteFunctions writeFunctions
-    ()
+    let routeCount = uint16 <| Seq.length routeSet.Routes
+    let nodeCount = uint16 <| Seq.sumBy (fun route -> Seq.length route.Nodes) routeSet.Routes 
+
+    // riteChar writeVersion writeRouteIdCount writeOffset routeCount nodeCount
+    writeHeader
+        convertedWriteFunctions.WriteChar
+        (fun _ -> convertedWriteFunctions.WriteUInt16 3us) 
+        (fun _ -> convertedWriteFunctions.WriteUInt16 routeCount)
+        convertedWriteFunctions.WriteUInt32
+        routeCount
+        nodeCount
