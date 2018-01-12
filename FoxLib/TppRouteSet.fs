@@ -259,15 +259,8 @@ let public Write (routeSet : RouteSet) (writeFunctions : WriteFunctions) =
     let routeCount = Seq.length routeSet.Routes |> uint16
     let nodeCount = Seq.sumBy (fun route -> Seq.length route.Nodes) routeSet.Routes |> uint16
 
-    // TODO: Pre-calculate offset? These are getting calculated twice.
-    let routeIdsOffset = getRouteIdsOffset()
-    let routeDefinitionsOffset = getRouteDefinitionsOffset routeIdsOffset routeCount
-    let nodesOffset = getNodesOffset routeDefinitionsOffset routeCount
-    let eventTablesOffset = getEventTablesOffset routeDefinitionsOffset routeCount
-    let eventsOffset = getEventsOffset eventTablesOffset nodeCount
-
-    buildHeader routeCount nodeCount
-    |> writeHeader
+    let header = buildHeader routeCount nodeCount
+    header |> writeHeader
         convertedWriteFunctions.WriteChar
         convertedWriteFunctions.WriteUInt16
         convertedWriteFunctions.WriteUInt32
@@ -276,5 +269,5 @@ let public Write (routeSet : RouteSet) (writeFunctions : WriteFunctions) =
     let allEvents = allNodes |> Seq.collect (fun node -> node.Events)
 
     routeSet.Routes
-    |> Seq.map (buildRouteDefinition allNodes allEvents nodesOffset eventTablesOffset eventsOffset)
+    |> Seq.map (buildRouteDefinition allNodes allEvents header.NodesOffset header.EventTablesOffset header.EventsOffset)
     |> Seq.iter (writeRouteDefinition convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteUInt16)
