@@ -94,11 +94,20 @@ let public Read (readFunctions : ReadFunctions) =
     let routes = []
     { Routes = routes }
 
+type private Header = {
+    Version : uint16;
+    RouteCount : uint16;
+    RouteIdsOffset : uint32;
+    NodesOffset : uint32;
+    EventTablesOffset : uint32;
+    EventsOffset : uint32;
+}
+
 type private RouteDefinition = {
     NodeOffset : uint32;
     EventTableOffset : uint32;
     EventsOffset : uint32;
-    EdgeEventCount : uint16;
+    NodeCount : uint16;
     EventCount : uint16;
 }
 
@@ -107,38 +116,80 @@ type private EventTable = {
     EdgeEventIndex : uint16;
 }
 
-let private calculateRouteIdsOffset() =
+let private makeNodeArray routeSet =
+    Seq.collect (fun route -> route.Nodes) routeSet.Routes
+
+let private makeEventArray nodes =
+    Seq.collect (fun node -> node.Events) nodes
+
+let private getOffsetForNode (nodesOffset : uint32) nodeIndex =
+    nodesOffset + (uint32 nodeIndex * uint32 sizeof<Vector3>)
+
+let private getEventTableOffsetForNode (eventTablesOffset : uint32) nodeIndex =
+    eventTablesOffset + (uint32 nodeIndex * uint32 sizeof<EventTable>)
+
+let private getOffsetForEvent (eventsOffset : uint32) eventIndex =
+    eventsOffset + (uint32 eventIndex * uint32(sizeof<StrCode32Hash> + 10 * sizeof<int> + 4 * sizeof<char>))
+    
+let private buildRouteDefinition route allNodes allEvents nodesOffset eventTablesOffset eventsOffset =
+    let initialNode = Seq.head route.Nodes
+    let nodeIndex =
+        Seq.findIndex (fun entry -> entry = initialNode) allNodes
+        |> uint32
+    let nodeOffset = getOffsetForNode nodesOffset nodeIndex
+    let eventTableOffset = getEventTableOffsetForNode eventTablesOffset nodeIndex
+
+    let eventIndex =
+        Seq.findIndex (fun element -> element = initialNode.EdgeEvent) allEvents
+        |> uint32
+    let eventsOffset = getOffsetForEvent eventsOffset eventIndex |> uint32
+    let nodeCount = Seq.length allNodes |> uint16
+    let eventCount = allNodes |> Seq.sumBy (fun node -> Seq.length node.Events) |> uint16
+
+    { NodeOffset = nodeOffset;
+    EventTableOffset = eventTableOffset;
+    EventsOffset = eventsOffset;
+    NodeCount = nodeCount;
+    EventCount = eventCount }
+
+let private getRouteIdsOffset() =
     28u
 
-let private calculateRouteDefinitionsOffset routeIdsOffset (routeCount : uint16) =
+let private getRouteDefinitionsOffset routeIdsOffset (routeCount : uint16) =
     routeIdsOffset + (uint32 routeCount * uint32 sizeof<StrCode32Hash>)
 
-let private calculateNodesOffset routeDefinitionsOffset (routeCount : uint16) =
+let private getNodesOffset routeDefinitionsOffset (routeCount : uint16) =
     routeDefinitionsOffset + (uint32 routeCount * uint32 sizeof<RouteDefinition>)
 
-let private calculateEventTablesOffset nodesOffset (nodeCount : uint16) =
+let private getEventTablesOffset nodesOffset (nodeCount : uint16) =
     nodesOffset + (uint32 nodeCount * uint32 sizeof<Vector3>)
 
-let private calculateEventsOffset eventTablesOffset (nodeCount : uint16) =
+let private getEventsOffset eventTablesOffset (nodeCount : uint16) =
     eventTablesOffset + (uint32 nodeCount * uint32 sizeof<EventTable>)
-
-let private writeHeader writeChar writeVersion writeRouteCount writeOffset routeCount nodeCount =
-    ['R';'O';'U';'T'] |> Seq.iter (fun entry -> writeChar entry)
-    writeVersion()
-    writeRouteCount()
     
+let private buildHeader routeCount nodeCount =    
     // TODO: Find a more elegant way to do this.
-    let routeIdsOffset = calculateRouteIdsOffset()
-    let routeDefinitionsOffset = calculateRouteDefinitionsOffset routeIdsOffset routeCount
-    let nodesOffset = calculateNodesOffset routeDefinitionsOffset routeCount
-    let eventTablesOffset = calculateEventTablesOffset nodesOffset nodeCount
-    let eventsOffset = calculateEventsOffset eventTablesOffset nodeCount
+    let routeIdsOffset = getRouteIdsOffset()
+    let routeDefinitionsOffset = getRouteDefinitionsOffset routeIdsOffset routeCount
+    let nodesOffset = getNodesOffset routeDefinitionsOffset routeCount
+    let eventTablesOffset = getEventTablesOffset nodesOffset nodeCount
+    let eventsOffset = getEventsOffset eventTablesOffset nodeCount
 
-    writeOffset routeIdsOffset
-    writeOffset routeDefinitionsOffset
-    writeOffset nodesOffset
-    writeOffset eventTablesOffset
-    writeOffset eventsOffset
+    { Version = 3us;
+    RouteCount = routeCount;
+    RouteIdsOffset = routeIdsOffset;
+    NodesOffset = nodesOffset;
+    EventTablesOffset = eventTablesOffset;
+    EventsOffset = eventsOffset }
+
+let private writeHeader writeChar writeUInt16 writeUInt32 header =
+    ['R';'O';'U';'T'] |> Seq.iter (fun entry -> writeChar entry)
+    header.Version |> writeUInt16
+    header.RouteCount |> writeUInt16
+    header.RouteIdsOffset |> writeUInt32
+    header.NodesOffset |> writeUInt32
+    header.EventTablesOffset |> writeUInt32
+    header.EventsOffset |> writeUInt32
 
 /// <summmary>
 /// Input functions to the Write function.
@@ -197,14 +248,11 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
 /// <param name="locatorSet">TppRouteSet to write.</param>
 let public Write (routeSet : RouteSet) (writeFunctions : WriteFunctions) =
     let convertedWriteFunctions = convertWriteFunctions writeFunctions
-    let routeCount = uint16 <| Seq.length routeSet.Routes
-    let nodeCount = uint16 <| Seq.sumBy (fun route -> Seq.length route.Nodes) routeSet.Routes 
-
-    // riteChar writeVersion writeRouteIdCount writeOffset routeCount nodeCount
-    writeHeader
+    let routeCount = Seq.length routeSet.Routes |> uint16
+    let nodeCount = Seq.sumBy (fun route -> Seq.length route.Nodes) routeSet.Routes |> uint16
+   
+    buildHeader routeCount nodeCount
+    |> writeHeader
         convertedWriteFunctions.WriteChar
-        (fun _ -> convertedWriteFunctions.WriteUInt16 3us) 
-        (fun _ -> convertedWriteFunctions.WriteUInt16 routeCount)
+        convertedWriteFunctions.WriteUInt16
         convertedWriteFunctions.WriteUInt32
-        routeCount
-        nodeCount
