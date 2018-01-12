@@ -94,6 +94,11 @@ let public Read (readFunctions : ReadFunctions) =
     let routes = []
     { Routes = routes }
 
+let private writeNode writeSingle (node : Vector3) =
+    node.X |> writeSingle
+    node.Y |> writeSingle
+    node.Z |> writeSingle
+
 type private Header = {
     Version : uint16;
     RouteCount : uint16;
@@ -253,21 +258,29 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
 /// Writes a TppRouteSet to frt format.
 /// </summary>
 /// <param name="writeFunctions">Function to write various data types.</param>
-/// <param name="locatorSet">TppRouteSet to write.</param>
-let public Write (routeSet : RouteSet) (writeFunctions : WriteFunctions) =
+/// <param name="routeSet">TppRouteSet to write.</param>
+let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
     let convertedWriteFunctions = convertWriteFunctions writeFunctions
-    let routeCount = Seq.length routeSet.Routes |> uint16
-    let nodeCount = Seq.sumBy (fun route -> Seq.length route.Nodes) routeSet.Routes |> uint16
 
+    // Write header.
+    let routeCount = Seq.length routeSet.Routes |> uint16
+    let nodeCount = Seq.sumBy (fun route -> Seq.length route.Nodes) routeSet.Routes |> uint16    
     let header = buildHeader routeCount nodeCount
+
     header |> writeHeader
         convertedWriteFunctions.WriteChar
         convertedWriteFunctions.WriteUInt16
         convertedWriteFunctions.WriteUInt32
 
+    // Write route definitions.
     let allNodes = routeSet.Routes |> Seq.collect (fun route -> route.Nodes)
     let allEvents = allNodes |> Seq.collect (fun node -> node.Events)
-
+    
     routeSet.Routes
     |> Seq.map (buildRouteDefinition allNodes allEvents header.NodesOffset header.EventTablesOffset header.EventsOffset)
     |> Seq.iter (writeRouteDefinition convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteUInt16)
+
+    // Write nodes.
+    allNodes
+    |> Seq.map (fun node -> node.Position)
+    |> Seq.iter (writeNode convertedWriteFunctions.WriteSingle)

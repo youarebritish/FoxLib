@@ -30,7 +30,7 @@ let ``empty TppRouteSet should be empty when read`` () =
     let routeSet = { Routes = [] }
     use stream = new MemoryStream()
     use writer = new BinaryWriter(stream)
-    RouteSet.Write routeSet (createWriteFunctions writer) |> ignore
+    (RouteSet.Write (createWriteFunctions writer) routeSet) |> ignore
 
     stream.Position <- 0L
 
@@ -100,7 +100,7 @@ let ``one route with one node and one event should have original values when rea
     let routeSet = createRandomRouteSet random 1 1 1
     use stream = new MemoryStream()
     use writer = new BinaryWriter(stream)
-    RouteSet.Write routeSet (createWriteFunctions writer) |> ignore
+    RouteSet.Write (createWriteFunctions writer) routeSet |> ignore
 
     stream.Position <- 0L
 
