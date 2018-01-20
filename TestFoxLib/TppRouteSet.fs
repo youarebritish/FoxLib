@@ -40,24 +40,24 @@ let ``empty TppRouteSet should be empty when read`` () =
     |> fun routeSet -> Seq.isEmpty routeSet.Routes |> Assert.IsTrue
 
 let private createRandomRouteEvent (random : System.Random) =
-   { Type = random.Next() |> uint32;
-    Param1 = random.Next();
-    Param2 = random.Next();
-    Param3 = random.Next();
-    Param4 = random.Next();
-    Param5 = random.Next();
-    Param6 = random.Next();
-    Param7 = random.Next();
-    Param8 = random.Next();
-    Param9 = random.Next();
-    Param10 = random.Next();
-    Snippet = "test" } :> IRouteEvent
+   new RouteEvent(random.Next() |> uint32,
+    random.Next() |> uint32,
+    random.Next() |> uint32,
+    random.Next() |> uint32,
+    random.Next() |> uint32,
+    random.Next() |> uint32,
+    random.Next() |> uint32,
+    random.Next() |> uint32,
+    random.Next() |> uint32,
+    random.Next() |> uint32,
+    random.Next() |> uint32,
+    "test")
 
 let private createRandomRouteNode (random : System.Random) eventCount =
     let makeFloat = random.NextDouble >> float32
     let position = { Vector3.X = makeFloat(); Y = float32 <| makeFloat(); Z = float32 <| makeFloat() }
     let edgeEvent = createRandomRouteEvent random
-    let (events : seq<IRouteEvent>) = [0..eventCount - 1] |> Seq.map (fun _ -> createRandomRouteEvent random)
+    let (events : seq<RouteEvent>) = [0..eventCount - 1] |> Seq.map (fun _ -> createRandomRouteEvent random)
     { Position = position; EdgeEvent = edgeEvent; Events = events }
 
 let private createRandomRoute (random : System.Random) nodeCount eventsPerNode =
@@ -67,7 +67,7 @@ let private createRandomRoute (random : System.Random) nodeCount eventsPerNode =
 let private createRandomRouteSet (random : System.Random) routeCount nodesPerRoute eventsPerNode =
     { Routes = [0..routeCount - 1] |> Seq.map (fun _ -> createRandomRoute random nodesPerRoute eventsPerNode) }
 
-let private areNodeEventSetsIdentical (nodeEventsA : seq<IRouteEvent>) (nodeEventsB : seq<IRouteEvent>) =
+let private areNodeEventSetsIdentical (nodeEventsA : seq<RouteEvent>) (nodeEventsB : seq<RouteEvent>) =
     [0 .. Seq.length nodeEventsA]
     |> Seq.exists (fun i ->
          (Seq.item i nodeEventsA) = (Seq.item i nodeEventsB))
