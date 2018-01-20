@@ -275,6 +275,9 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
     WriteChar = rawWriteFunctions.WriteChar.Invoke;
     WriteEmptyBytes = rawWriteFunctions.WriteEmptyBytes.Invoke; }
 
+let public Blah one two =
+    ()
+
 /// <summary>
 /// Writes a TppRouteSet to frt format.
 /// </summary>
