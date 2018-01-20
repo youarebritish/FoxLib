@@ -3,26 +3,25 @@
 open FoxLib.Core
 open System
 
-type public IRouteEvent = interface end
-
-type public RouteEvent<'T1, 'T2, 'T3, 'T4, 'T5, 'T6, 'T7, 'T8, 'T9, 'T10> =
-    {   Type : StrCode32Hash
-        Param1 : 'T1
-        Param2 : 'T2
-        Param3 : 'T3
-        Param4 : 'T4
-        Param5 : 'T5
-        Param6 : 'T6
-        Param7 : 'T7
-        Param8 : 'T8
-        Param9 : 'T9
-        Param10 : 'T10
-        Snippet : string } interface IRouteEvent
+type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, param3:uint32, param4:uint32, param5:uint32,
+                        param6:uint32, param7:uint32, param8:uint32, param9:uint32, param10:uint32, snippet:string) =
+    member this.EventType = eventType;
+    member this.Param1 = param1;
+    member this.Param2 = param2;
+    member this.Param3 = param3;
+    member this.Param4 = param4;
+    member this.Param5 = param5;
+    member this.Param6 = param6;
+    member this.Param7 = param7;
+    member this.Param8 = param8;
+    member this.Param9 = param9;
+    member this.Param10 = param10;
+    member this.Snippet = snippet;
 
 type public RouteNode = {
     Position : Vector3
-    EdgeEvent : IRouteEvent
-    Events : seq<IRouteEvent>
+    EdgeEvent : RouteEvent
+    Events : seq<RouteEvent>
 }
 
 type public Route = {
@@ -121,11 +120,33 @@ type private EventTable = {
     EdgeEventIndex : uint16;
 }
 
-let private makeNodeArray routeSet =
-    Seq.collect (fun route -> route.Nodes) routeSet.Routes
+let private writeEvent writeHash writeUInt32 writeChar (event:RouteEvent) =
+    writeHash event.EventType
 
-let private makeEventArray nodes =
-    Seq.collect (fun node -> node.Events) nodes
+    writeUInt32 event.Param1
+    writeUInt32 event.Param2
+    writeUInt32 event.Param3
+    writeUInt32 event.Param4
+    writeUInt32 event.Param5
+    writeUInt32 event.Param6
+    writeUInt32 event.Param7
+    writeUInt32 event.Param8
+    writeUInt32 event.Param9
+    writeUInt32 event.Param10
+    
+    writeChar event.Snippet.[0]
+    writeChar event.Snippet.[1]
+    writeChar event.Snippet.[2]
+    writeChar event.Snippet.[3]
+
+let private writeEventTable writeUInt16 eventTable =
+    eventTable.EventCount |> writeUInt16
+    eventTable.EdgeEventIndex |> writeUInt16
+
+let private makeEventTable allEvents node =
+    let edgeEventIndex = allEvents |> Seq.findIndex (fun event -> event = node.EdgeEvent)
+    { EventCount = node.Events |> Seq.length |> uint16;
+    EdgeEventIndex = edgeEventIndex |> uint16 }
 
 let private getOffsetForNode (nodesOffset : uint32) nodeIndex =
     nodesOffset + (uint32 nodeIndex * uint32 sizeof<Vector3>)
@@ -284,3 +305,14 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
     allNodes
     |> Seq.map (fun node -> node.Position)
     |> Seq.iter (writeNode convertedWriteFunctions.WriteSingle)
+
+    // Write event tables.
+    allNodes
+    |> Seq.map (makeEventTable allEvents)
+    |> Seq.iter (writeEventTable convertedWriteFunctions.WriteUInt16)
+
+    // Write events.
+    allNodes
+    |> Seq.collect (fun node -> node.Events)
+    |> Seq.distinct
+    |> Seq.iter (writeEvent convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteChar)
