@@ -2,6 +2,7 @@
 
 open FoxLib.Core
 open System
+open FoxLib
 
 type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, param3:uint32, param4:uint32, param5:uint32,
                         param6:uint32, param7:uint32, param8:uint32, param9:uint32, param10:uint32, snippet:string) =
@@ -32,6 +33,66 @@ type public Route = {
 type public RouteSet = {
     Routes : seq<Route>
 }
+
+type private Header = {
+    Version : uint16;
+    RouteCount : uint16;
+    RouteIdsOffset : uint32;
+    NodesOffset : uint32;
+    EventTablesOffset : uint32;
+    EventsOffset : uint32;
+}
+
+type private RouteDefinition = {
+    NodeOffset : uint32;
+    EventTableOffset : uint32;
+    EventsOffset : uint32;
+    NodeCount : uint16;
+    EventCount : uint16;
+}
+
+type private EventTable = {
+    EventCount : uint16;
+    EdgeEventIndex : uint16;
+}
+
+let private readSnippetAsString readChar =
+    let chars = [ readChar(); readChar(); readChar(); readChar() ] |> List.toArray
+    new String(chars)
+
+let private readEvent readHash readUInt32 readSnippet =
+    new RouteEvent(readHash(),
+        readUInt32(),
+        readUInt32(),
+        readUInt32(),
+        readUInt32(),
+        readUInt32(),
+        readUInt32(),
+        readUInt32(),
+        readUInt32(),
+        readUInt32(),
+        readUInt32(),
+        readSnippet())
+
+let private readEventTable readCount = 
+    { EventCount = readCount();
+    EdgeEventIndex = readCount() }
+
+let private readRouteDefinition readCount readOffset =
+    { NodeOffset = readOffset();
+    EventTableOffset = readOffset();
+    EventsOffset = readOffset();
+    NodeCount = readCount();
+    EventCount = readCount() }
+
+let private readHeader readVersion readCount readOffset =
+    // TODO: Verify we have a supported version.
+    { Version = readVersion();
+    RouteCount = readCount();
+    RouteIdsOffset = readOffset();
+    NodesOffset = readOffset();
+    EventTablesOffset = readOffset();
+    EventsOffset = readOffset() }
 
 /// <summmary>
 /// Input functions to the Read function.
@@ -90,35 +151,37 @@ let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
 /// <returns>The parsed TppRouteSet.</returns>
 let public Read (readFunctions : ReadFunctions) =
     let convertedFunctions = convertReadFunctions readFunctions
+
+    let header = readHeader convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt32
+    let routeIds = [1..header.RouteCount |> int]
+                    |> Seq.map (fun _ -> convertedFunctions.ReadUInt32())
+    let routeDefinitions = [1..Seq.length routeIds]
+                            |> Seq.map (fun _ -> readRouteDefinition convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt32)
+    
+    let nodes = routeDefinitions
+                    |> Seq.map (fun routeDefinition -> routeDefinition.NodeCount)
+                    |> Seq.map (fun nodeCount -> [1..nodeCount |> int]
+                                                    |> Seq.map (fun _ -> Vector3.Read convertedFunctions.ReadSingle))
+
+    let eventTables = routeDefinitions
+                    |> Seq.map (fun routeDefinition -> routeDefinition.NodeCount)
+                    |> Seq.map (fun nodeCount -> [1..nodeCount |> int]
+                                                    |> Seq.map (fun _ -> readEventTable convertedFunctions.ReadUInt16))
+
+    let events = routeDefinitions
+                    |> Seq.map (fun routeDefinition -> routeDefinition.EventCount)
+                    |> Seq.map (fun eventCount -> [1..eventCount |> int]
+                                                    |> Seq.map (fun _ -> readEvent
+                                                                            convertedFunctions.ReadUInt32
+                                                                            convertedFunctions.ReadUInt32
+                                                                            (fun input -> readSnippetAsString convertedFunctions.ReadChar)))
+
     let routes = []
     { Routes = routes }
 
-let private writeNode writeSingle (node : Vector3) =
-    node.X |> writeSingle
-    node.Y |> writeSingle
-    node.Z |> writeSingle
-
-type private Header = {
-    Version : uint16;
-    RouteCount : uint16;
-    RouteIdsOffset : uint32;
-    NodesOffset : uint32;
-    EventTablesOffset : uint32;
-    EventsOffset : uint32;
-}
-
-type private RouteDefinition = {
-    NodeOffset : uint32;
-    EventTableOffset : uint32;
-    EventsOffset : uint32;
-    NodeCount : uint16;
-    EventCount : uint16;
-}
-
-type private EventTable = {
-    EventCount : uint16;
-    EdgeEventIndex : uint16;
-}
+let private writeNodePosition writeSingle (node : Vector3) =
+    // TODO This function is redundant.
+    Vector3.Write node writeSingle
 
 let private writeEvent writeHash writeUInt32 writeChar (event:RouteEvent) =
     writeHash event.EventType
@@ -274,10 +337,7 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
     WriteInt32 = rawWriteFunctions.WriteInt32.Invoke;
     WriteChar = rawWriteFunctions.WriteChar.Invoke;
     WriteEmptyBytes = rawWriteFunctions.WriteEmptyBytes.Invoke; }
-
-let public Blah one two =
-    ()
-
+    
 /// <summary>
 /// Writes a TppRouteSet to frt format.
 /// </summary>
@@ -307,7 +367,7 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
     // Write nodes.
     allNodes
     |> Seq.map (fun node -> node.Position)
-    |> Seq.iter (writeNode convertedWriteFunctions.WriteSingle)
+    |> Seq.iter (writeNodePosition convertedWriteFunctions.WriteSingle)
 
     // Write event tables.
     allNodes
