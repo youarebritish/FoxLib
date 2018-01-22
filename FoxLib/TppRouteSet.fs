@@ -56,6 +56,28 @@ type private EventTable = {
     EdgeEventIndex : uint16;
 }
 
+let private makeNodes nodePositions eventTables (events:RouteEvent[]) =
+    // FIXME: Figure out a way to do this without mutable.
+    let mutable offset = 0
+    nodePositions
+        |> Seq.zip eventTables
+        |> Seq.map (fun entry ->    let eventTable = fst entry
+                                    let edgeEventIndex = eventTable.EdgeEventIndex |> int
+                                    let eventCount = eventTable.EventCount |> int
+
+                                    let node = { Position = snd entry;
+                                    EdgeEvent = events.[edgeEventIndex];
+                                    Events = events.[offset..offset + eventCount - 1] }
+
+                                    offset <- offset + eventCount
+                                    node)
+
+let private makeRoutes routeIds nodePositions eventTables events =
+    nodePositions
+        |> Seq.map2 (fun tables positions -> makeNodes positions tables events) eventTables
+        |> Seq.zip routeIds
+        |> Seq.map (fun routeData -> { Name = fst routeData; Nodes = snd routeData } )
+
 let private readSnippetAsString readChar =
     let chars = [ readChar(); readChar(); readChar(); readChar() ] |> List.toArray
     new String(chars)
@@ -155,29 +177,30 @@ let public Read (readFunctions : ReadFunctions) =
     let header = readHeader convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt32
     let routeIds = [1..header.RouteCount |> int]
                     |> Seq.map (fun _ -> convertedFunctions.ReadUInt32())
+                    |> Seq.toArray
+
     let routeDefinitions = [1..Seq.length routeIds]
                             |> Seq.map (fun _ -> readRouteDefinition convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt32)
     
-    let nodes = routeDefinitions
-                    |> Seq.map (fun routeDefinition -> routeDefinition.NodeCount)
-                    |> Seq.map (fun nodeCount -> [1..nodeCount |> int]
-                                                    |> Seq.map (fun _ -> Vector3.Read convertedFunctions.ReadSingle))
+    let nodePositions = routeDefinitions
+                        |> Seq.map (fun routeDefinition -> routeDefinition.NodeCount)
+                        |> Seq.map (fun nodeCount -> [1..nodeCount |> int]
+                                                        |> Seq.map (fun _ -> Vector3.Read convertedFunctions.ReadSingle))
 
     let eventTables = routeDefinitions
                     |> Seq.map (fun routeDefinition -> routeDefinition.NodeCount)
                     |> Seq.map (fun nodeCount -> [1..nodeCount |> int]
                                                     |> Seq.map (fun _ -> readEventTable convertedFunctions.ReadUInt16))
-
     let events = routeDefinitions
                     |> Seq.map (fun routeDefinition -> routeDefinition.EventCount)
-                    |> Seq.map (fun eventCount -> [1..eventCount |> int]
+                    |> Seq.collect (fun eventCount -> [1..eventCount |> int]
                                                     |> Seq.map (fun _ -> readEvent
                                                                             convertedFunctions.ReadUInt32
                                                                             convertedFunctions.ReadUInt32
                                                                             (fun input -> readSnippetAsString convertedFunctions.ReadChar)))
-
-    let routes = []
-    { Routes = routes }
+                                                    |> Seq.toArray
+    
+    { Routes = (makeRoutes routeIds nodePositions eventTables events) |> Seq.toArray }
 
 let private writeNodePosition writeSingle (node : Vector3) =
     // TODO This function is redundant.
