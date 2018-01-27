@@ -40,32 +40,35 @@ let ``empty TppRouteSet should be empty when read`` () =
     |> fun routeSet -> Seq.isEmpty routeSet.Routes |> Assert.IsTrue
 
 let private createRandomRouteEvent (random : System.Random) =
-   new RouteEvent(random.Next() |> uint32,
-    random.Next() |> uint32,
-    random.Next() |> uint32,
-    random.Next() |> uint32,
-    random.Next() |> uint32,
-    random.Next() |> uint32,
-    random.Next() |> uint32,
-    random.Next() |> uint32,
-    random.Next() |> uint32,
-    random.Next() |> uint32,
-    random.Next() |> uint32,
+   new RouteEvent(1u,//random.Next() |> uint32,
+    1u,//random.Next() |> uint32,
+    1u,//random.Next() |> uint32,
+    1u,//random.Next() |> uint32,
+    1u,//random.Next() |> uint32,
+    1u,//random.Next() |> uint32,
+    1u,//random.Next() |> uint32,
+    1u,//random.Next() |> uint32,
+    1u,//random.Next() |> uint32,
+    1u,//random.Next() |> uint32,
+    1u,//random.Next() |> uint32,
     "test")
 
 let private createRandomRouteNode (random : System.Random) eventCount =
     let makeFloat = random.NextDouble >> float32
-    let position = { Vector3.X = makeFloat(); Y = float32 <| makeFloat(); Z = float32 <| makeFloat() }
+    //let position = { Vector3.X = makeFloat(); Y = float32 <| makeFloat(); Z = float32 <| makeFloat() }
+    let position = { Vector3.X = 1.0f; Y = 2.0f; Z = 3.0f }
     let edgeEvent = createRandomRouteEvent random
     let (events : seq<RouteEvent>) = [0..eventCount - 1] |> Seq.map (fun _ -> createRandomRouteEvent random)
     { Position = position; EdgeEvent = edgeEvent; Events = events }
 
 let private createRandomRoute (random : System.Random) nodeCount eventsPerNode =
-    { Name = random.Next() |> uint32;
+    { Name = 69u;//random.Next() |> uint32;
     Nodes = [0..nodeCount - 1] |> Seq.map (fun _ -> createRandomRouteNode random eventsPerNode) }
 
 let private createRandomRouteSet (random : System.Random) routeCount nodesPerRoute eventsPerNode =
-    { Routes = [0..routeCount - 1] |> Seq.map (fun _ -> createRandomRoute random nodesPerRoute eventsPerNode) }
+    { Routes = [0..routeCount - 1]
+                |> Seq.map (fun _ -> createRandomRoute random nodesPerRoute eventsPerNode)
+                |> Seq.toArray }
 
 let private areNodeEventSetsIdentical (nodeEventsA : seq<RouteEvent>) (nodeEventsB : seq<RouteEvent>) =
     [0 .. Seq.length nodeEventsA]
@@ -87,11 +90,11 @@ let private areRoutesIdentical routeA routeB =
     |> not
 
 let private areRouteSetsIdentical (routeSetA : RouteSet) (routeSetB : RouteSet) =
-    routeSetA.GetHashCode() = routeSetB.GetHashCode()
-    (* [0 .. Seq.length routeSetA.Routes - 1]
+    //routeSetA.GetHashCode() = routeSetB.GetHashCode()
+    [0 .. Seq.length routeSetA.Routes - 1]
     |> Seq.exists (fun i ->
         not <| areRoutesIdentical (Seq.item i routeSetA.Routes) (Seq.item i routeSetB.Routes))
-    |> not *)
+    |> not
 
 [<Test>]
 [<Category("TppRouteSet")>]

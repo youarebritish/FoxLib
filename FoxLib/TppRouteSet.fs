@@ -3,6 +3,7 @@
 open FoxLib.Core
 open System
 open FoxLib
+open System.Linq
 
 type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, param3:uint32, param4:uint32, param5:uint32,
                         param6:uint32, param7:uint32, param8:uint32, param9:uint32, param10:uint32, snippet:string) =
@@ -19,11 +20,26 @@ type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, pa
     member this.Param10 = param10;
     member this.Snippet = snippet;
 
+    override this.Equals(other) =
+        match other with
+        | :? RouteEvent as otherEvent -> (this.EventType, this.Param1, this.Param2, this.Param3,
+                                            this.Param4, this.Param5, this.Param6, this.Param7,
+                                            this.Param8, this.Param9, this.Param10, this.Snippet) =
+                                            (otherEvent.EventType, otherEvent.Param1, otherEvent.Param2, otherEvent.Param3,
+                                                otherEvent.Param4, otherEvent.Param5, otherEvent.Param6, otherEvent.Param7,
+                                                otherEvent.Param8, otherEvent.Param9, otherEvent.Param10, otherEvent.Snippet)
+        | _ -> false
+
 type public RouteNode = {
     Position : Vector3
     EdgeEvent : RouteEvent
     Events : seq<RouteEvent>
 }
+
+let private areRouteNodesIdentical nodeA nodeB =
+    nodeA.Position = nodeB.Position
+    && nodeA.EdgeEvent = nodeB.EdgeEvent
+    && Enumerable.SequenceEqual(nodeA.Events, nodeB.Events)
 
 type public Route = {
     Name : StrCode32Hash
@@ -38,6 +54,7 @@ type private Header = {
     Version : uint16;
     RouteCount : uint16;
     RouteIdsOffset : uint32;
+    RouteDefinitionsOffset : uint32;
     NodesOffset : uint32;
     EventTablesOffset : uint32;
     EventsOffset : uint32;
@@ -76,7 +93,7 @@ let private makeRoutes routeIds nodePositions eventTables events =
     nodePositions
         |> Seq.map2 (fun tables positions -> makeNodes positions tables events) eventTables
         |> Seq.zip routeIds
-        |> Seq.map (fun routeData -> { Name = fst routeData; Nodes = snd routeData } )
+        |> Seq.map (fun routeData -> { Name = fst routeData; Nodes = snd routeData |> Seq.toArray } )
 
 let private readSnippetAsString readChar =
     let chars = [ readChar(); readChar(); readChar(); readChar() ] |> List.toArray
@@ -107,11 +124,17 @@ let private readRouteDefinition readCount readOffset =
     NodeCount = readCount();
     EventCount = readCount() }
 
-let private readHeader readVersion readCount readOffset =
+let private readHeader readChar readVersion readCount readOffset =
+    let signatureR = readChar();
+    let signatureO = readChar();
+    let signatureU = readChar();
+    let signatureT = readChar();
+
     // TODO: Verify we have a supported version.
     { Version = readVersion();
     RouteCount = readCount();
     RouteIdsOffset = readOffset();
+    RouteDefinitionsOffset = readOffset();
     NodesOffset = readOffset();
     EventTablesOffset = readOffset();
     EventsOffset = readOffset() }
@@ -174,23 +197,25 @@ let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
 let public Read (readFunctions : ReadFunctions) =
     let convertedFunctions = convertReadFunctions readFunctions
 
-    let header = readHeader convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt32
+    let header = readHeader convertedFunctions.ReadChar convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt32
     let routeIds = [1..header.RouteCount |> int]
                     |> Seq.map (fun _ -> convertedFunctions.ReadUInt32())
                     |> Seq.toArray
 
     let routeDefinitions = [1..Seq.length routeIds]
                             |> Seq.map (fun _ -> readRouteDefinition convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt32)
+                            |> Seq.toArray
     
     let nodePositions = routeDefinitions
-                        |> Seq.map (fun routeDefinition -> routeDefinition.NodeCount)
-                        |> Seq.map (fun nodeCount -> [1..nodeCount |> int]
-                                                        |> Seq.map (fun _ -> Vector3.Read convertedFunctions.ReadSingle))
+                        |> Array.map (fun routeDefinition -> routeDefinition.NodeCount)
+                        |> Array.map (fun nodeCount -> [|1..nodeCount |> int|]
+                                                        |> Array.map (fun _ -> Vector3.Read convertedFunctions.ReadSingle))
 
     let eventTables = routeDefinitions
-                    |> Seq.map (fun routeDefinition -> routeDefinition.NodeCount)
-                    |> Seq.map (fun nodeCount -> [1..nodeCount |> int]
-                                                    |> Seq.map (fun _ -> readEventTable convertedFunctions.ReadUInt16))
+                    |> Array.map (fun routeDefinition -> routeDefinition.NodeCount)
+                    |> Array.map (fun nodeCount -> [|1..nodeCount |> int|]
+                                                    |> Array.map (fun _ -> readEventTable convertedFunctions.ReadUInt16))
+
     let events = routeDefinitions
                     |> Seq.map (fun routeDefinition -> routeDefinition.EventCount)
                     |> Seq.collect (fun eventCount -> [1..eventCount |> int]
@@ -242,11 +267,11 @@ let private getEventTableOffsetForNode (eventTablesOffset : uint32) nodeIndex =
 
 let private getOffsetForEvent (eventsOffset : uint32) eventIndex =
     eventsOffset + (uint32 eventIndex * uint32(sizeof<StrCode32Hash> + 10 * sizeof<int> + 4 * sizeof<char>))
-    
+
 let private buildRouteDefinition allNodes allEvents nodesOffset eventTablesOffset eventsOffset route =
     let initialNode = Seq.head route.Nodes
     let nodeIndex =
-        Seq.findIndex (fun entry -> entry = initialNode) allNodes
+        Seq.findIndex (fun entry -> areRouteNodesIdentical entry initialNode) allNodes
         |> uint32
     let nodeOffset = getOffsetForNode nodesOffset nodeIndex
     let eventTableOffset = getEventTableOffsetForNode eventTablesOffset nodeIndex
@@ -298,6 +323,7 @@ let private buildHeader routeCount nodeCount =
     { Version = 3us;
     RouteCount = routeCount;
     RouteIdsOffset = routeIdsOffset;
+    RouteDefinitionsOffset = routeDefinitionsOffset;
     NodesOffset = nodesOffset;
     EventTablesOffset = eventTablesOffset;
     EventsOffset = eventsOffset }
@@ -307,6 +333,7 @@ let private writeHeader writeChar writeUInt16 writeUInt32 header =
     header.Version |> writeUInt16
     header.RouteCount |> writeUInt16
     header.RouteIdsOffset |> writeUInt32
+    header.RouteDefinitionsOffset |> writeUInt32
     header.NodesOffset |> writeUInt32
     header.EventTablesOffset |> writeUInt32
     header.EventsOffset |> writeUInt32
@@ -379,9 +406,19 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
         convertedWriteFunctions.WriteUInt16
         convertedWriteFunctions.WriteUInt32
 
+    // Write route IDs.
+    routeSet.Routes
+    |> Seq.toArray
+    |> Seq.iter (fun route -> convertedWriteFunctions.WriteUInt32 route.Name)
+    
     // Write route definitions.
-    let allNodes = routeSet.Routes |> Seq.collect (fun route -> route.Nodes)
-    let allEvents = allNodes |> Seq.collect (fun node -> node.Events)
+    let allNodes = routeSet.Routes                   
+                   |> Seq.collect (fun route -> route.Nodes)
+                   |> Seq.toArray
+
+    let allEvents = allNodes
+                    |> Seq.collect (fun node -> node.Events)
+                    |> Seq.toArray
     
     routeSet.Routes
     |> Seq.map (buildRouteDefinition allNodes allEvents header.NodesOffset header.EventTablesOffset header.EventsOffset)
@@ -390,15 +427,18 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
     // Write nodes.
     allNodes
     |> Seq.map (fun node -> node.Position)
+    |> Seq.toArray
     |> Seq.iter (writeNodePosition convertedWriteFunctions.WriteSingle)
 
     // Write event tables.
     allNodes
     |> Seq.map (makeEventTable allEvents)
+    |> Seq.toArray
     |> Seq.iter (writeEventTable convertedWriteFunctions.WriteUInt16)
 
     // Write events.
     allNodes
     |> Seq.collect (fun node -> node.Events)
     |> Seq.distinct
+    |> Seq.toArray
     |> Seq.iter (writeEvent convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteChar)
