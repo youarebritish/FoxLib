@@ -90,7 +90,6 @@ let private areRoutesIdentical routeA routeB =
     |> not
 
 let private areRouteSetsIdentical (routeSetA : RouteSet) (routeSetB : RouteSet) =
-    //routeSetA.GetHashCode() = routeSetB.GetHashCode()
     [0 .. Seq.length routeSetA.Routes - 1]
     |> Seq.exists (fun i ->
         not <| areRoutesIdentical (Seq.item i routeSetA.Routes) (Seq.item i routeSetB.Routes))
