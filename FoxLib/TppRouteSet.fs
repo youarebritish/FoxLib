@@ -260,6 +260,9 @@ let private makeEventTable allEvents node =
     { EventCount = node.Events |> Seq.length |> uint16;
     EdgeEventIndex = edgeEventIndex |> uint16 }
 
+let private getOffsetForRouteDefinition (routeDefinitionOffset : uint32) routeDefinitionIndex =
+    routeDefinitionOffset + (uint32 routeDefinitionIndex * uint32 sizeof<RouteDefinition>)
+
 let private getOffsetForNode (nodesOffset : uint32) nodeIndex =
     nodesOffset + (uint32 nodeIndex * uint32 sizeof<Vector3>)
 
@@ -269,16 +272,16 @@ let private getEventTableOffsetForNode (eventTablesOffset : uint32) nodeIndex =
 let private getOffsetForEvent (eventsOffset : uint32) eventIndex =
     eventsOffset + (uint32 eventIndex * uint32(sizeof<StrCode32Hash> + 10 * sizeof<int> + 4 * sizeof<char>))
 
-let private buildRouteDefinition allNodes nodesOffset eventTablesOffset eventsOffset eventIndex route =
+let private buildRouteDefinition allNodes nodesOffset eventTablesOffset eventsOffset getRouteDefinitionOffset eventIndex route =
+    let routeDefinitionOffset = getRouteDefinitionOffset()
     let initialNode = Seq.head route.Nodes
     let nodeIndex =
         Seq.findIndex (fun entry -> areRouteNodesIdentical entry initialNode) allNodes
         |> uint32
-    // FIXME: Need to add the offset of the RouteDefinition to all these offsets
-    let nodeOffset = getOffsetForNode nodesOffset nodeIndex
-    let eventTableOffset = getEventTableOffsetForNode eventTablesOffset nodeIndex
+    let nodeOffset = routeDefinitionOffset + getOffsetForNode nodesOffset nodeIndex
+    let eventTableOffset = routeDefinitionOffset + getEventTableOffsetForNode eventTablesOffset nodeIndex
 
-    let eventsOffset = getOffsetForEvent eventsOffset eventIndex |> uint32
+    let eventsOffset = routeDefinitionOffset + getOffsetForEvent eventsOffset eventIndex |> uint32
     let nodeCount = Seq.length route.Nodes |> uint16
     let eventCount = route.Nodes |> Seq.sumBy (fun node -> Seq.length node.Events) |> uint16
 
@@ -423,8 +426,10 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
                                                         |> Seq.map (fun node -> Seq.length node.Events)
                                                         |> Seq.sum)
 
+    let getRouteDefinitionOffset index = getOffsetForRouteDefinition header.RouteDefinitionsOffset index
+    
     routeSet.Routes
-    |> Seq.mapi (fun index route -> route |> buildRouteDefinition allNodes header.NodesOffset header.EventTablesOffset header.EventsOffset (Seq.item index routeInitialIndices))
+    |> Seq.mapi (fun index route -> route |> buildRouteDefinition allNodes header.NodesOffset header.EventTablesOffset header.EventsOffset (fun () -> getRouteDefinitionOffset index) (Seq.item index routeInitialIndices))
     |> Seq.iter (writeRouteDefinition convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteUInt16)
 
     // Write nodes.
@@ -438,12 +443,10 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
     |> Seq.map (makeEventTable allEvents)
     |> Seq.toArray
     |> Seq.iter (writeEventTable convertedWriteFunctions.WriteUInt16)
-
-    let eventCount = allNodes |> Seq.collect (fun node -> node.Events) |> Seq.length
-
+    
     // Write events.
     allNodes
     |> Seq.collect (fun node -> node.Events)
-    //|> Seq.distinct
+    //|> Seq.distinct Not sure why this is breaking it. Need to get this working at some point to handle reused EdgeEvents.
     |> Seq.toArray
     |> Seq.iter (writeEvent convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteChar)
