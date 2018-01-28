@@ -39,31 +39,34 @@ let ``empty TppRouteSet should be empty when read`` () =
     |> RouteSet.Read
     |> fun routeSet -> Seq.isEmpty routeSet.Routes |> Assert.IsTrue
 
-let private createRandomRouteEvent (random : System.Random) =
-   new RouteEvent(1u,//random.Next() |> uint32,
-    1u,//random.Next() |> uint32,
-    1u,//random.Next() |> uint32,
-    1u,//random.Next() |> uint32,
-    1u,//random.Next() |> uint32,
-    1u,//random.Next() |> uint32,
-    1u,//random.Next() |> uint32,
-    1u,//random.Next() |> uint32,
-    1u,//random.Next() |> uint32,
-    1u,//random.Next() |> uint32,
-    1u,//random.Next() |> uint32,
+let private createRandomRouteEvent =
+   new RouteEvent(999u,
+    2u,
+    3u,
+    4u,
+    5u,
+    6u,
+    7u,
+    8u,
+    9u,
+    10u,
+    11u,
     "test")
 
 let private createRandomRouteNode (random : System.Random) eventCount =
     let makeFloat = random.NextDouble >> float32
-    //let position = { Vector3.X = makeFloat(); Y = float32 <| makeFloat(); Z = float32 <| makeFloat() }
-    let position = { Vector3.X = 1.0f; Y = 2.0f; Z = 3.0f }
-    let edgeEvent = createRandomRouteEvent random
-    let (events : seq<RouteEvent>) = [0..eventCount - 1] |> Seq.map (fun _ -> createRandomRouteEvent random)
+    let position = { Vector3.X = makeFloat(); Y = float32 <| makeFloat(); Z = float32 <| makeFloat() }
+    let edgeEvent = createRandomRouteEvent
+    let events = [0..eventCount - 1]
+                    |> Seq.map (fun _ -> createRandomRouteEvent)
+                    |> Seq.toArray
     { Position = position; EdgeEvent = edgeEvent; Events = events }
 
 let private createRandomRoute (random : System.Random) nodeCount eventsPerNode =
-    { Name = 69u;//random.Next() |> uint32;
-    Nodes = [0..nodeCount - 1] |> Seq.map (fun _ -> createRandomRouteNode random eventsPerNode) }
+    { Name = random.Next() |> uint32;
+    Nodes = [0..nodeCount - 1]
+            |> Seq.map (fun _ -> createRandomRouteNode random eventsPerNode)
+            |> Seq.toArray }
 
 let private createRandomRouteSet (random : System.Random) routeCount nodesPerRoute eventsPerNode =
     { Routes = [0..routeCount - 1]
@@ -100,6 +103,7 @@ let private areRouteSetsIdentical (routeSetA : RouteSet) (routeSetB : RouteSet) 
 let ``one route with one node and one event should have original values when read`` () =
     let random = new System.Random()
     let routeSet = createRandomRouteSet random 1 1 1
+
     use stream = new MemoryStream()
     use writer = new BinaryWriter(stream)
     RouteSet.Write (createWriteFunctions writer) routeSet |> ignore
