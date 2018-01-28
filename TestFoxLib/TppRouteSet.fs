@@ -114,3 +114,20 @@ let ``one route with one node and one event should have original values when rea
     createReadFunctions reader
     |> RouteSet.Read
     |> fun readRouteSet -> areRouteSetsIdentical readRouteSet routeSet |> Assert.IsTrue
+
+[<Test>]
+[<Category("TppRouteSet")>]
+let ``ten routes with ten nodes and ten events should have original values when read`` () =
+    let random = new System.Random()
+    let routeSet = createRandomRouteSet random 10 10 10
+
+    use stream = new MemoryStream()
+    use writer = new BinaryWriter(stream)
+    RouteSet.Write (createWriteFunctions writer) routeSet |> ignore
+
+    stream.Position <- 0L
+
+    use reader = new BinaryReader(stream)
+    createReadFunctions reader
+    |> RouteSet.Read
+    |> fun readRouteSet -> areRouteSetsIdentical readRouteSet routeSet |> Assert.IsTrue
