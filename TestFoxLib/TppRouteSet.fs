@@ -7,6 +7,7 @@ open System
 open FoxLib.Tpp.RouteSet
 open FoxLib.Tpp
 open FoxLib.Core
+open System.Text
 
 let private createWriteFunctions (writer : BinaryWriter) =
     { WriteFunctions.WriteSingle = new Action<float32>(writer.Write);
@@ -17,11 +18,17 @@ let private createWriteFunctions (writer : BinaryWriter) =
     WriteEmptyBytes = new Action<int>(fun numBytes -> Array.zeroCreate<byte> numBytes |> writer.Write) }
 
 let private createReadFunctions (reader : BinaryReader) =
+    let readBytes = fun num ->
+                            //let bytes = reader.ReadBytes 1
+                            //let string = ASCIIEncoding.ASCII.GetString bytes
+                            //string.Chars 0
+                            reader.ReadBytes num
+
     { ReadFunctions.ReadSingle = new Func<float32>(reader.ReadSingle);
     ReadUInt16 = new Func<uint16>(reader.ReadUInt16);
     ReadUInt32 = new Func<uint32>(reader.ReadUInt32);
     ReadInt32 = new Func<int32>(reader.ReadInt32);
-    ReadChar = new Func<char>(reader.ReadChar);
+    ReadBytes = new Func<int, byte[]>(readBytes);
     SkipBytes = new Action<int>(fun numBytes -> reader.ReadBytes numBytes |> ignore) }
 
 [<Test>]
