@@ -4,6 +4,6 @@ Library for reading and writing Fox Engine file formats. Currently supported for
 | Extension | Name              | Import      | Export      |
 |-----------|-------------------|-------------|-------------|
 | lba       | GimmickLocatorSet | Yes         | Yes         |
-| frt       | TppRouteSet       | In progress | In progress |
+| frt       | TppRouteSet       | Yes | In progress |
 
 For examples of usage, see [FoxLibExamples](https://github.com/youarebritish/FoxLibExamples).
