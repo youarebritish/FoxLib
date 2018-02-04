@@ -493,9 +493,9 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
                                                         |> Seq.map (fun node -> Seq.length node.Events)
                                                         |> Seq.sum)
 
-    let getRouteInitialEventIndex index = match index with
-                                            | 0 -> 0
-                                            | _ -> Seq.item (index - 1) routeEventCounts
+    let getRouteInitialEventIndex index = Seq.take index routeEventCounts |> Seq.sum//match index with
+                                            //| 0 -> 0
+                                            //| _ -> Seq.take index routeEventCounts |> Seq.sum//Seq.item (index - 1) routeEventCounts
 
     let getRouteDefinitionOffset index = getOffsetForRouteDefinition header.RouteDefinitionsOffset index
     
