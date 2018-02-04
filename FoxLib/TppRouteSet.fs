@@ -4,7 +4,11 @@ open FoxLib.Core
 open System
 open FoxLib
 open System.Linq
+open System.Text
 
+/// <summary>
+/// Denotes behavior for an AI agent to perform at a route node.
+/// </summary>
 type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, param3:uint32, param4:uint32, param5:uint32,
                         param6:uint32, param7:uint32, param8:uint32, param9:uint32, param10:uint32, snippet:string) =
     member this.EventType = eventType;
@@ -20,6 +24,11 @@ type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, pa
     member this.Param10 = param10;
     member this.Snippet = snippet;
 
+    /// <summary>
+    /// Determines whether or not two events are identical.
+    /// </summary>
+    /// <param name="this">The first node.</param>
+    /// <param name="other">The node with which to compare.</param>
     static member isIdentical(this : RouteEvent) (other : RouteEvent) =
         (this.EventType, this.Param1, this.Param2, this.Param3,
                                             this.Param4, this.Param5, this.Param6, this.Param7,
@@ -28,26 +37,46 @@ type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, pa
                                             other.Param4, other.Param5, other.Param6, other.Param7,
                                             other.Param8, other.Param9, other.Param10, other.Snippet)
 
+/// <summary>
+/// A discrete step along an AI route.
+/// </summary>
 type public RouteNode = {
+    /// World position for the AI agent to navigate to.
     Position : Vector3
+    /// Event to perform while traveling to this node.
     EdgeEvent : RouteEvent
+    /// Events to perform upon arrival at this node.
     Events : seq<RouteEvent>
 }
 
+/// <summary>
+/// Determines if two route nodes are identical.
+/// </summary>
+/// <param name="nodeA">The first node.</param>
+/// <param name="nodeB">The node with which to compare.</param>
 let private areRouteNodesIdentical nodeA nodeB =
     nodeA.Position = nodeB.Position
     && nodeA.EdgeEvent = nodeB.EdgeEvent
     && Enumerable.SequenceEqual(nodeA.Events, nodeB.Events)
 
+/// <summary>
+/// A sequence of positions for an AI to traverse, along with behavior events to trigger at each position.
+/// </summary>
 type public Route = {
     Name : StrCode32Hash
     Nodes : seq<RouteNode>
 }
 
+/// <summary>
+/// A collection of AI routes.
+/// </summary>
 type public RouteSet = {
     Routes : seq<Route>
 }
 
+/// <summary>
+/// Metadata for an frt file.
+/// </summary>
 type private Header = {
     Version : uint16;
     RouteCount : uint16;
@@ -58,6 +87,9 @@ type private Header = {
     EventsOffset : uint32;
 }
 
+/// <summary>
+/// Metadata for a route.
+/// </summary>
 type private RouteDefinition = {
     NodeOffset : uint32;
     EventTableOffset : uint32;
@@ -66,57 +98,25 @@ type private RouteDefinition = {
     EventCount : uint16;
 }
 
+/// <summary>
+/// Node metadata specifying what events map to a node.
+/// </summary>
 type private EventTable = {
     EventCount : uint16;
     EdgeEventIndex : uint16;
 }
 
-let private takeSublistN (n : int[]) (input : _ seq) = 
-    let en = input.GetEnumerator()
-    let gen s = seq {
-        for _i = 1 to s do
-            if en.MoveNext() then 
-                yield en.Current
-    }
-    let ret = Array.map (fun s -> gen s) n
-    Seq.iter (fun _ -> ()) ret
-    en.Dispose()
-    Seq.toArray ret
-    
-let private makeNodes nodePositions eventTables (events:RouteEvent[]) =
-    // FIXME: Figure out a way to do this without mutable.
-    let offset = ref 0
-    let ret = nodePositions
-                |> Array.zip eventTables
-                |> Array.map (fun entry ->  let eventTable = fst entry
-                                            let edgeEventIndex = eventTable.EdgeEventIndex |> int
-                                            let eventCount = eventTable.EventCount |> int
+/// <summary>
+/// Get the character encoding to use for reading/writing frt files.
+/// </summary>
+let public getEncoding() =
+    Encoding.GetEncoding 1252
 
-                                            let node = { Position = snd entry;
-                                            EdgeEvent = events.[edgeEventIndex];
-                                            Events = events.[!offset..(!offset + eventCount - 1)] }
-
-                                            offset := !offset + eventCount
-                                            node)
-    ret
-
-let private makeInitialEventIndices eventTables =
-    let mutable offset = 0
-    
-    eventTables
-    |> Array.map (fun eventTable -> eventTable.EventCount |> int)
-    |> Array.map (fun eventCount -> let initialEventIndex = offset
-                                    offset <- offset + eventCount
-
-                                    initialEventIndex)
-
-let private makeEventLists eventCounts (events:RouteEvent[]) initialEventIndices =
-    initialEventIndices
-    |> Array.zip eventCounts
-    |> Array.map (fun countAndStartIndex -> let startIndex = snd countAndStartIndex
-                                            let count = fst countAndStartIndex
-                                            events.[startIndex..startIndex + count - 1])
-
+/// <summary>
+/// Partition the list of all route events in a routeset into a list of events for each node.
+/// </summary>
+/// <param name="eventTables">Event tables for each node in each route.</param>
+/// <param name="events">All events in the routeset.</param>
 let private makeGlobalEventTable (eventTables:EventTable[][]) (events:RouteEvent[]) =
     let offset = ref 0
 
@@ -127,7 +127,13 @@ let private makeGlobalEventTable (eventTables:EventTable[][]) (events:RouteEvent
                                                                         offset := !offset + eventCount
 
                                                                         events.[initialEventIndex..initialEventIndex + eventCount - 1]))
-                                            
+           
+/// <summary>
+/// Construct nodes.
+/// </summary>
+/// <param name="nodePositions">All node positions in the routeset.</param>
+/// <param name="edgeEvents">All edge events in the routeset.</param>
+/// <param name="events">Events for each node.</param>
 let private buildNodes nodePositions (edgeEvents:RouteEvent[]) (events:RouteEvent[][]) =
     nodePositions
     |> Array.zip edgeEvents
@@ -138,6 +144,13 @@ let private buildNodes nodePositions (edgeEvents:RouteEvent[]) (events:RouteEven
                                     EdgeEvent = edgeEvent;
                                     Events = fst nodeData } )
 
+/// <summary>
+/// Construct routes.
+/// </summary>
+/// <param name="routeIds">IDs of the routes in the routeset.</param>
+/// <param name="nodePositions">Positions of the nodes in each route.</param>
+/// <param name="edgeEvents">Edge events of the nodes in each route.</param>
+/// <param name="globalEventTable">Events for each node in each route.</param>
 let private makeRoutes routeIds nodePositions edgeEvents globalEventTable =    
     let nodesAndEventTables = nodePositions
                                 |> Array.zip edgeEvents
@@ -152,17 +165,23 @@ let private makeRoutes routeIds nodePositions edgeEvents globalEventTable =
 
     let routes = nodesEventTablesAndRouteIds
                  |> Array.map (fun routeData -> { Name = fst routeData; Nodes = snd routeData } )
-
-    //nodePositions
-    //|> Seq.map2 (fun tables positions -> makeNodes positions tables events) eventTables
-    //|> Seq.zip routeIds
-    //|> Seq.map (fun routeData -> { Name = fst routeData; Nodes = snd routeData |> Seq.toArray } )
+                 
     routes
     
+/// <summary>
+/// Read a snippet as a string.
+/// </summary>
+/// <param name="readChars">Function to read a number of chars.</param>
 let private readSnippetAsString readChars =
     let chars = readChars 4;
     System.Text.Encoding.Default.GetString(chars)
 
+/// <summary>
+/// Read a route event.
+/// </summary>
+/// <param name="readHash">Function to read a hash.</param>
+/// <param name="readUInt32">Function to read a uint32.</param>
+/// <param name="readSnippet">Function to read a snippet.</param>
 let private readEvent readHash readUInt32 readSnippet =
     new RouteEvent(readHash(),
         readUInt32(),
@@ -177,10 +196,19 @@ let private readEvent readHash readUInt32 readSnippet =
         readUInt32(),
         readSnippet())
 
-let private readEventTable readCount = 
-    { EventCount = readCount();
-    EdgeEventIndex = readCount() }
+/// <summary>
+/// Read an event table.
+/// </summary>
+/// <param name="readUInt16">Function to read a uint16.</param>
+let private readEventTable readUInt16 = 
+    { EventCount = readUInt16();
+    EdgeEventIndex = readUInt16() }
 
+/// <summary>
+/// Read a route definition.
+/// </summary>
+/// <param name="readCount">Function to read a count.</param>
+/// <param name="readOffset">Function to read an offset.</param>
 let private readRouteDefinition readCount readOffset =
     { NodeOffset = readOffset();
     EventTableOffset = readOffset();
@@ -188,6 +216,13 @@ let private readRouteDefinition readCount readOffset =
     NodeCount = readCount();
     EventCount = readCount() }
 
+/// <summary>
+/// Read an frt header.
+/// </summary>
+/// <param name="readChars">Function to read a number of chars.</param>
+/// <param name="readVersion">Function to read a version.</param>
+/// <param name="readCount">Function to read a count.</param>
+/// <param name="readOffset">Function to read an offset.</param>
 let private readHeader readChars readVersion readCount readOffset =
     let signature = readChars 4;
 
@@ -291,10 +326,13 @@ let public Read (readFunctions : ReadFunctions) =
     let routes = (makeRoutes routeIds nodePositions edgeEvents globalEventTable)
     { Routes = routes }
 
-let private writeNodePosition writeSingle (node : Vector3) =
-    // TODO This function is redundant.
-    Vector3.Write node writeSingle
-
+/// <summary>
+/// Write an event.
+/// </summary>
+/// <param name="writeHash">Function to write a hash.</param>
+/// <param name="writeUInt32">Function to write a uint32.</param>
+/// <param name="writeChar">Function to write a char.</param>
+/// <param name="event">The event to write.</param>
 let private writeEvent writeHash writeUInt32 writeChar (event:RouteEvent) =
     writeHash event.EventType
 
@@ -316,27 +354,67 @@ let private writeEvent writeHash writeUInt32 writeChar (event:RouteEvent) =
                                 | true -> writeChar '\000'
                                 | false -> writeChar (snippetCharArray.[index]))
 
+/// <summary>
+/// Write a node event table.
+/// </summary>
+/// <param name="writeUInt16">Function to write a uint16.</param>
+/// <param name="eventTable">Event table to write.</param>
 let private writeEventTable writeUInt16 eventTable =
     eventTable.EventCount |> writeUInt16
     eventTable.EdgeEventIndex |> writeUInt16
 
+/// <summary>
+/// Make an event table for a node.
+/// </summary>
+/// <param name="allEvents">All events in the routeset.</param>
+/// <param name="node">The node.</param>
 let private makeEventTable allEvents node =
     let edgeEventIndex = allEvents |> Seq.findIndex (fun event -> event = node.EdgeEvent)
     { EventCount = node.Events |> Seq.length |> uint16;
     EdgeEventIndex = edgeEventIndex |> uint16 }
 
+/// <summary>
+/// Calculate the offset for a route definition.
+/// </summary>
+/// <param name="routeDefinitionOffset">First route definition offset.</param>
+/// <param name="routeDefinitionIndex">Index of the route definition.</param>
 let private getOffsetForRouteDefinition (routeDefinitionOffset : uint32) routeDefinitionIndex =
     routeDefinitionOffset + (uint32 routeDefinitionIndex * 16u)
 
+/// <summary>
+/// Calculate the offset for a node.
+/// </summary>
+/// <param name="nodesOffset">First node offset.</param>
+/// <param name="nodeIndex">Index of the node.</param>
 let private getOffsetForNode (nodesOffset : uint32) nodeIndex =
     nodesOffset + (uint32 nodeIndex * 12u)
 
+/// <summary>
+/// Calculate the offset for an event table.
+/// </summary>
+/// <param name="eventTablesOffset">First event table offset.</param>
+/// <param name="nodeIndex">Index of the node.</param>
 let private getEventTableOffsetForNode (eventTablesOffset : uint32) nodeIndex =
     eventTablesOffset + (uint32 nodeIndex * uint32 4u)
 
+/// <summary>
+/// Calculate the offset for an event.
+/// </summary>
+/// <param name="eventsOffset">First event offset.</param>
+/// <param name="eventIndex">Index of the event.</param>
 let private getOffsetForEvent (eventsOffset : uint32) eventIndex =
     eventsOffset + (uint32 eventIndex * 48u)
 
+/// <summary>
+/// Construct a route definition.
+/// </summary>
+/// <param name="allNodes">All nodes in the routeset.</param>
+/// <param name="nodesOffset">Offset for where nodes start in the frt file.</param>
+/// <param name="eventTablesOffset">Offset for where event tables start in the frt file.</param>
+/// <param name="eventsOffset">Offset for where events start in the frt file.</param>
+/// <param name="getRouteDefinitionOffset">Offset for where route definitions start in the frt file.</param>
+/// <param name="eventIndex">Index of the first event in the route.</param>
+/// <param name="route">The route to write.</param>
 let private buildRouteDefinition allNodes nodesOffset eventTablesOffset eventsOffset getRouteDefinitionOffset eventIndex route =
     let routeDefinitionOffset = getRouteDefinitionOffset()
     let initialNode = Seq.head route.Nodes
@@ -356,6 +434,12 @@ let private buildRouteDefinition allNodes nodesOffset eventTablesOffset eventsOf
     NodeCount = nodeCount;
     EventCount = eventCount }
 
+/// <summary>
+/// Write a route definition.
+/// </summary>
+/// <param name="writeOffset">Function to write an offset.</param>
+/// <param name="writeUInt16">Function to write a uint16.</param>
+/// <param name="routeDefinition">Route definition to write.</param>
 let private writeRouteDefinition writeOffset writeUInt16 routeDefinition =
     routeDefinition.NodeOffset |> writeOffset
     routeDefinition.EventTableOffset |> writeOffset
@@ -363,21 +447,49 @@ let private writeRouteDefinition writeOffset writeUInt16 routeDefinition =
     routeDefinition.NodeCount |> writeUInt16
     routeDefinition.EventCount |> writeUInt16
 
+/// <summary>
+/// Calculate the offset for where route IDs start in an frt file.
+/// </summary>
 let private getRouteIdsOffset() =
     28u
 
+/// <summary>
+/// Calculate the offset for where route definitions start in an frt file.
+/// </summary>
+/// <param name="routeIdsOffset">Offset for where route IDs start in the frt file.</param>
+/// <param name="routeCount">Number of routes in the routeset.</param>
 let private getRouteDefinitionsOffset routeIdsOffset (routeCount : uint16) =
     routeIdsOffset + (uint32 routeCount * uint32 sizeof<StrCode32Hash>)
 
+/// <summary>
+/// Calculate the offset for where nodes start in an frt file.
+/// </summary>
+/// <param name="routeDefinitionsOffset">Offset for where route definitions start in the frt file.</param>
+/// <param name="routeCount">Number of routes in the routeset.</param>
 let private getNodesOffset routeDefinitionsOffset (routeCount : uint16) =
     routeDefinitionsOffset + (uint32 routeCount * 16u)
 
+/// <summary>
+/// Calculate the offset for where event tables start in an frt file.
+/// </summary>
+/// <param name="nodesOffset">Offset for where nodes start in the frt file.</param>
+/// <param name="nodeCount">Number of nodes in the routeset.</param>
 let private getEventTablesOffset nodesOffset (nodeCount : uint16) =
     nodesOffset + (uint32 nodeCount * 12u)
 
+/// <summary>
+/// Calculate the offset for where events start in an frt file.
+/// </summary>
+/// <param name="eventTablesOffset">Offset for where event tables start in the frt file.</param>
+/// <param name="nodeCount">Number of nodes in the routeset.</param>
 let private getEventsOffset eventTablesOffset (nodeCount : uint16) =
     eventTablesOffset + (uint32 nodeCount * uint32 sizeof<EventTable>)
     
+/// <summary>
+/// Construct header data for a routeset.
+/// </summary>
+/// <param name="routeCount">Number of routes in the routeset.</param>
+/// <param name="nodeCount">Number of nodes in the routeset.</param>
 let private buildHeader routeCount nodeCount =    
     // TODO: Find a more elegant way to do this.
     let routeIdsOffset = getRouteIdsOffset()
@@ -394,6 +506,13 @@ let private buildHeader routeCount nodeCount =
     EventTablesOffset = eventTablesOffset;
     EventsOffset = eventsOffset }
 
+/// <summary>
+/// Write an frt header.
+/// </summary>
+/// <param name="writeChar">Function to write a char.</param>
+/// <param name="writeUInt16">Function to write a uint16.</param>
+/// <param name="writeUInt32">Function to write a uint32.</param>
+/// <param name="header"Header data to write.></param>
 let private writeHeader writeChar writeUInt16 writeUInt32 header =
     ['R';'O';'U';'T'] |> Seq.iter (fun entry -> writeChar entry)
     header.Version |> writeUInt16
@@ -491,9 +610,7 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
                                                         |> Seq.map (fun node -> Seq.length node.Events)
                                                         |> Seq.sum)
 
-    let getRouteInitialEventIndex index = Seq.take index routeEventCounts |> Seq.sum//match index with
-                                            //| 0 -> 0
-                                            //| _ -> Seq.take index routeEventCounts |> Seq.sum//Seq.item (index - 1) routeEventCounts
+    let getRouteInitialEventIndex index = Seq.take index routeEventCounts |> Seq.sum
 
     let getRouteDefinitionOffset index = getOffsetForRouteDefinition header.RouteDefinitionsOffset index
     
@@ -505,7 +622,7 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
     allNodes
     |> Seq.map (fun node -> node.Position)
     |> Seq.toArray
-    |> Seq.iter (writeNodePosition convertedWriteFunctions.WriteSingle)
+    |> Seq.iter (fun node -> Vector3.Write node convertedWriteFunctions.WriteSingle)
 
     // Write event tables.
     allNodes
@@ -516,6 +633,5 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
     // Write events.
     allNodes
     |> Seq.collect (fun node -> node.Events)
-    //|> Seq.distinct Not sure why this is breaking it. Need to get this working at some point to handle reused EdgeEvents.
     |> Seq.toArray
     |> Seq.iter (writeEvent convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteChar)
