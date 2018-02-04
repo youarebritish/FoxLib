@@ -4,7 +4,7 @@ Library for reading and writing Fox Engine file formats. Currently supported for
 | Extension | Name                          | Import         | Export        |
 |-----------|-------------------------------|----------------|---------------|
 | lba       | GimmickLocatorSet             | Yes            | Yes           |
-| frt       | TppRouteSet                   | Coming in 1.1  | Coming in 1.1 |
+| frt       | TppRouteSet                   | Yes            | Yes           |
 | frld      | RailDataFile                  | Coming in 1.2  | Coming in 1.2 |
 | pcsp      | PrecomputedSkyParameters      | Coming in 1.3  | Coming in 1.3 |
 
