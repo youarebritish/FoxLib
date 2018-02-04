@@ -73,28 +73,94 @@ type private EventTable = {
     EdgeEventIndex : uint16;
 }
 
+let private takeSublistN (n : int[]) (input : _ seq) = 
+    let en = input.GetEnumerator()
+    let gen s = seq {
+        for _i = 1 to s do
+            if en.MoveNext() then 
+                yield en.Current
+    }
+    let ret = Array.map (fun s -> gen s) n
+    Seq.iter (fun _ -> ()) ret
+    en.Dispose()
+    Seq.toArray ret
+    
 let private makeNodes nodePositions eventTables (events:RouteEvent[]) =
     // FIXME: Figure out a way to do this without mutable.
+    let offset = ref 0
+    let ret = nodePositions
+                |> Array.zip eventTables
+                |> Array.map (fun entry ->  let eventTable = fst entry
+                                            let edgeEventIndex = eventTable.EdgeEventIndex |> int
+                                            let eventCount = eventTable.EventCount |> int
+
+                                            let node = { Position = snd entry;
+                                            EdgeEvent = events.[edgeEventIndex];
+                                            Events = events.[!offset..(!offset + eventCount - 1)] }
+
+                                            offset := !offset + eventCount
+                                            node)
+    ret
+
+let private makeInitialEventIndices eventTables =
     let mutable offset = 0
-    nodePositions
-        |> Seq.zip eventTables
-        |> Seq.map (fun entry ->    let eventTable = fst entry
-                                    let edgeEventIndex = eventTable.EdgeEventIndex |> int
-                                    let eventCount = eventTable.EventCount |> int
-
-                                    let node = { Position = snd entry;
-                                    EdgeEvent = events.[edgeEventIndex];
-                                    Events = events.[offset..offset + eventCount - 1] }
-
+    
+    eventTables
+    |> Array.map (fun eventTable -> eventTable.EventCount |> int)
+    |> Array.map (fun eventCount -> let initialEventIndex = offset
                                     offset <- offset + eventCount
-                                    node)
 
-let private makeRoutes routeIds nodePositions eventTables events =
+                                    initialEventIndex)
+
+let private makeEventLists eventCounts (events:RouteEvent[]) initialEventIndices =
+    initialEventIndices
+    |> Array.zip eventCounts
+    |> Array.map (fun countAndStartIndex -> let startIndex = snd countAndStartIndex
+                                            let count = fst countAndStartIndex
+                                            events.[startIndex..startIndex + count - 1])
+
+let private makeGlobalEventTable (eventTables:EventTable[][]) (events:RouteEvent[]) =
+    let offset = ref 0
+
+    eventTables
+    |> Array.map (fun routeTables -> routeTables |>
+                                     Array.map (fun eventTable -> eventTable.EventCount |> int)
+                                     |> Array.map (fun eventCount ->    let initialEventIndex = !offset
+                                                                        offset := !offset + eventCount
+
+                                                                        events.[initialEventIndex..initialEventIndex + eventCount - 1]))
+                                            
+let private buildNodes nodePositions (edgeEvents:RouteEvent[]) (events:RouteEvent[][]) =
     nodePositions
-        |> Seq.map2 (fun tables positions -> makeNodes positions tables events) eventTables
-        |> Seq.zip routeIds
-        |> Seq.map (fun routeData -> { Name = fst routeData; Nodes = snd routeData |> Seq.toArray } )
+    |> Array.zip edgeEvents
+    |> Array.zip events
+    |> Array.map (fun nodeData ->   let edgeEvent = snd nodeData |> fst
 
+                                    { Position = snd nodeData |> snd;
+                                    EdgeEvent = edgeEvent;
+                                    Events = fst nodeData } )
+
+let private makeRoutes routeIds nodePositions edgeEvents globalEventTable =    
+    let nodesAndEventTables = nodePositions
+                                |> Array.zip edgeEvents
+                                |> Array.zip globalEventTable
+                                |> Array.map (fun entry ->  let events = fst entry
+                                                            let edgeEvents = snd entry |> fst
+                                                            let positions = snd entry |> snd
+                                                            buildNodes positions edgeEvents events)
+
+    let nodesEventTablesAndRouteIds = nodesAndEventTables
+                                        |> Array.zip routeIds
+
+    let routes = nodesEventTablesAndRouteIds
+                 |> Array.map (fun routeData -> { Name = fst routeData; Nodes = snd routeData } )
+
+    //nodePositions
+    //|> Seq.map2 (fun tables positions -> makeNodes positions tables events) eventTables
+    //|> Seq.zip routeIds
+    //|> Seq.map (fun routeData -> { Name = fst routeData; Nodes = snd routeData |> Seq.toArray } )
+    routes
+    
 let private readSnippetAsString readChars =
     let chars = readChars 4;
     System.Text.Encoding.Default.GetString(chars)
@@ -195,13 +261,11 @@ let public Read (readFunctions : ReadFunctions) =
     let convertedFunctions = convertReadFunctions readFunctions
 
     let header = readHeader convertedFunctions.ReadBytes convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt32
-    let routeIds = [1..header.RouteCount |> int]
-                    |> Seq.map (fun _ -> convertedFunctions.ReadUInt32())
-                    |> Seq.toArray
+    let routeIds = [|1..header.RouteCount |> int|]
+                    |> Array.map (fun _ -> convertedFunctions.ReadUInt32())
 
-    let routeDefinitions = [1..Seq.length routeIds]
-                            |> Seq.map (fun _ -> readRouteDefinition convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt32)
-                            |> Seq.toArray
+    let routeDefinitions = [|1..Array.length routeIds|]
+                            |> Array.map (fun _ -> readRouteDefinition convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt32)
     
     let nodePositions = routeDefinitions
                         |> Array.map (fun routeDefinition -> routeDefinition.NodeCount)
@@ -211,18 +275,23 @@ let public Read (readFunctions : ReadFunctions) =
     let eventTables = routeDefinitions
                     |> Array.map (fun routeDefinition -> routeDefinition.NodeCount)
                     |> Array.map (fun nodeCount -> [|1..nodeCount |> int|]
-                                                    |> Array.map (fun _ -> readEventTable convertedFunctions.ReadUInt16))
+                                                    |> Array.map (fun _ -> readEventTable convertedFunctions.ReadUInt16))    
 
     let events = routeDefinitions
-                    |> Seq.map (fun routeDefinition -> routeDefinition.EventCount)
-                    |> Seq.collect (fun eventCount -> [1..eventCount |> int]
-                                                    |> Seq.map (fun index -> readEvent
-                                                                                convertedFunctions.ReadUInt32
-                                                                                convertedFunctions.ReadUInt32                                                                            
-                                                                                (fun input -> readSnippetAsString convertedFunctions.ReadBytes)))
-                                                    |> Seq.toArray
+                    |> Array.map (fun routeDefinition -> routeDefinition.EventCount)
+                    |> Array.collect (fun eventCount -> [|1..eventCount |> int|]
+                                                        |> Array.map (fun _ -> readEvent
+                                                                                    convertedFunctions.ReadUInt32
+                                                                                    convertedFunctions.ReadUInt32                                                                            
+                                                                                    (fun input -> readSnippetAsString convertedFunctions.ReadBytes)))
+    let edgeEvents = eventTables
+                        |> Array.map (fun routeEventTables -> routeEventTables
+                                                                |> Array.map (fun eventTable -> events.[eventTable.EdgeEventIndex |> int]))
     
-    { Routes = (makeRoutes routeIds nodePositions eventTables events) |> Seq.toArray }
+    let globalEventTable = makeGlobalEventTable eventTables events
+
+    let routes = (makeRoutes routeIds nodePositions edgeEvents globalEventTable)
+    { Routes = routes }
 
 let private writeNodePosition writeSingle (node : Vector3) =
     // TODO This function is redundant.
