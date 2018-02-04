@@ -20,15 +20,13 @@ type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, pa
     member this.Param10 = param10;
     member this.Snippet = snippet;
 
-    override this.Equals(other) =
-        match other with
-        | :? RouteEvent as otherEvent -> (this.EventType, this.Param1, this.Param2, this.Param3,
+    static member isIdentical(this : RouteEvent) (other : RouteEvent) =
+        (this.EventType, this.Param1, this.Param2, this.Param3,
                                             this.Param4, this.Param5, this.Param6, this.Param7,
                                             this.Param8, this.Param9, this.Param10, this.Snippet) =
-                                            (otherEvent.EventType, otherEvent.Param1, otherEvent.Param2, otherEvent.Param3,
-                                                otherEvent.Param4, otherEvent.Param5, otherEvent.Param6, otherEvent.Param7,
-                                                otherEvent.Param8, otherEvent.Param9, otherEvent.Param10, otherEvent.Snippet)
-        | _ -> false
+                                            (other.EventType, other.Param1, other.Param2, other.Param3,
+                                            other.Param4, other.Param5, other.Param6, other.Param7,
+                                            other.Param8, other.Param9, other.Param10, other.Snippet)
 
 type public RouteNode = {
     Position : Vector3

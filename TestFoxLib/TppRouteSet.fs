@@ -83,11 +83,11 @@ let private createRandomRouteSet (random : System.Random) routeCount nodesPerRou
 let private areNodeEventSetsIdentical (nodeEventsA : seq<RouteEvent>) (nodeEventsB : seq<RouteEvent>) =
     [0 .. Seq.length nodeEventsA]
     |> Seq.exists (fun i ->
-         (Seq.item i nodeEventsA) = (Seq.item i nodeEventsB))
+         (Seq.item i nodeEventsA) |> RouteEvent.isIdentical (Seq.item i nodeEventsB))
 
 let private areNodesIdentical (nodeA : RouteNode) (nodeB : RouteNode) =
     nodeA.Position = nodeB.Position
-    && nodeA.EdgeEvent = nodeB.EdgeEvent
+    && nodeA.EdgeEvent |> RouteEvent.isIdentical nodeB.EdgeEvent
     && [0 .. Seq.length nodeA.Events - 1]
         |> Seq.exists (fun i ->
             not <| areNodeEventSetsIdentical nodeA.Events nodeB.Events)
