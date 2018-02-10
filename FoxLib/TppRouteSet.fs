@@ -421,6 +421,36 @@ let private getOffsetForEvent (eventsOffset : uint32) eventIndex =
     eventsOffset + (uint32 eventIndex * 48u)
 
 /// <summary>
+/// Calculate the number of events to write for a node.
+/// </summary>
+/// <param name="allNodes">All nodes in the routeset.</param>
+/// <param name="nodeIndex">The node index.</param>
+let private getNodeEventCount allNodes nodeIndex =
+    let node = Array.item nodeIndex allNodes
+    
+    let wasEdgeEventPreviouslyUsed = allNodes
+                                    |> Array.take nodeIndex
+                                    |> Array.map (fun node -> node.EdgeEvent)
+                                    |> Array.contains node.EdgeEvent
+
+    let nodeEventCount = Seq.length node.Events
+
+    match wasEdgeEventPreviouslyUsed with
+    | true -> nodeEventCount
+    | false -> nodeEventCount + 1
+
+
+/// <summary>
+/// Calculate the number of events to write for a route.
+/// </summary>
+/// <param name="allNodes">All nodes in the routeset.</param>
+/// <param name="route">The route.</param>
+let private getRouteEventCount allNodes route =
+    route.Nodes
+    |> Seq.mapi (fun index _ -> getNodeEventCount allNodes index)
+    |> Seq.sum
+
+/// <summary>
 /// Construct a route definition.
 /// </summary>
 /// <param name="allNodes">All nodes in the routeset.</param>
@@ -441,7 +471,9 @@ let private buildRouteDefinition allNodes nodesOffset eventTablesOffset eventsOf
 
     let eventsOffset = (getOffsetForEvent eventsOffset eventIndex) - routeDefinitionOffset |> uint32
     let nodeCount = Seq.length route.Nodes |> uint16
-    let eventCount = route.Nodes |> Seq.sumBy (fun node -> Seq.length node.Events) |> uint16
+    let eventCount = route
+                    |> getRouteEventCount allNodes
+                    |> uint16
 
     { NodeOffset = nodeOffset;
     EventTableOffset = eventTableOffset;
@@ -617,13 +649,14 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
                    |> Seq.toArray
 
     let allEvents = allNodes
-                    |> Seq.collect (fun node -> node.Events)
+                    |> Seq.collect (fun node -> seq [node.EdgeEvent]
+                                                |> Seq.append node.Events )
                     |> Seq.toArray
+                    |> Seq.distinct
                     
+    // TODO: This is calculated twice. Do this earlier and pass this into the route definition build routine.
     let routeEventCounts = routeSet.Routes
-                                |> Seq.map (fun route -> route.Nodes
-                                                        |> Seq.map (fun node -> Seq.length node.Events)
-                                                        |> Seq.sum)
+                            |> Seq.map (fun route -> getRouteEventCount allNodes route)
 
     let getRouteInitialEventIndex index = Seq.take index routeEventCounts |> Seq.sum
 
@@ -646,7 +679,5 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
     |> Seq.iter (writeEventTable convertedWriteFunctions.WriteUInt16)
     
     // Write events.
-    allNodes
-    |> Seq.collect (fun node -> node.Events)
-    |> Seq.toArray
+    allEvents
     |> Seq.iter (writeEvent convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteChar)

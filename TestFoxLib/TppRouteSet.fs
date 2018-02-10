@@ -46,7 +46,7 @@ let ``empty TppRouteSet should be empty when read`` () =
     |> RouteSet.Read
     |> fun routeSet -> Seq.isEmpty routeSet.Routes |> Assert.IsTrue
 
-let private createRandomRouteEvent =
+let private createRandomRouteEvent() =
    new RouteEvent(999u,
     2u,
     3u,
@@ -63,9 +63,9 @@ let private createRandomRouteEvent =
 let private createRandomRouteNode (random : System.Random) eventCount =
     let makeFloat = random.NextDouble >> float32
     let position = { Vector3.X = makeFloat(); Y = float32 <| makeFloat(); Z = float32 <| makeFloat() }
-    let edgeEvent = createRandomRouteEvent
+    let edgeEvent = createRandomRouteEvent()
     let events = [0..eventCount - 1]
-                    |> Seq.map (fun _ -> createRandomRouteEvent)
+                    |> Seq.map (fun _ -> createRandomRouteEvent())
                     |> Seq.toArray
     { Position = position; EdgeEvent = edgeEvent; Events = events }
 
@@ -127,6 +127,26 @@ let ``one route with one node and one event should have original values when rea
 let ``ten routes with ten nodes and ten events should have original values when read`` () =
     let random = new System.Random()
     let routeSet = createRandomRouteSet random 10 10 10
+
+    use stream = new MemoryStream()
+    use writer = new BinaryWriter(stream)
+    RouteSet.Write (createWriteFunctions writer) routeSet |> ignore
+
+    stream.Position <- 0L
+
+    use reader = new BinaryReader(stream)
+    createReadFunctions reader
+    |> RouteSet.Read
+    |> fun readRouteSet -> areRouteSetsIdentical readRouteSet routeSet |> Assert.IsTrue
+
+[<Test>]
+[<Category("TppRouteSet")>]
+let ``edge events should write even when not in edge list`` () =
+    let nodeEvent = createRandomRouteEvent()
+    let edgeEvent = createRandomRouteEvent()
+    let node = { EdgeEvent = edgeEvent; Events = [nodeEvent]; Position = {Vector3.X = 1.0f; Y = 2.0f; Z = 3.0f} };
+    let route = { Nodes = [node]; Name = 123456u }
+    let routeSet = { Routes = [route] }
 
     use stream = new MemoryStream()
     use writer = new BinaryWriter(stream)
