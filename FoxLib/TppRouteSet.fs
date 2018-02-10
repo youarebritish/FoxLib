@@ -5,9 +5,11 @@ open System
 open FoxLib
 open System.Linq
 open System.Text
+open System
+open System
 
 /// <summary>
-/// Denotes behavior for an AI agent to perform at a route node.
+/// Behavior for an AI agent to perform at a route node.
 /// </summary>
 type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, param3:uint32, param4:uint32, param5:uint32,
                         param6:uint32, param7:uint32, param8:uint32, param9:uint32, param10:uint32, snippet:string) =
@@ -234,8 +236,7 @@ let private readRouteDefinition readCount readOffset =
 /// <param name="readOffset">Function to read an offset.</param>
 let private readHeader readChars readVersion readCount readOffset =
     let signature = readChars 4;
-
-    // TODO: Verify we have a supported version.
+    
     { Version = readVersion();
     RouteCount = readCount();
     RouteIdsOffset = readOffset();
@@ -303,6 +304,11 @@ let public Read (readFunctions : ReadFunctions) =
     let convertedFunctions = convertReadFunctions readFunctions
 
     let header = readHeader convertedFunctions.ReadBytes convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt32
+    match header.Version with
+        | 3us -> ()
+        | 2us -> raise (new NotSupportedException("Ground Zeroes .frt format is currently unsupported."))        
+        | _ -> raise (new NotSupportedException("Unrecognized format."))
+    
     let routeIds = [|1..header.RouteCount |> int|]
                     |> Array.map (fun _ -> convertedFunctions.ReadUInt32())
 
