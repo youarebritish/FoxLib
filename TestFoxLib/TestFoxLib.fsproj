@@ -71,8 +71,6 @@
     <Reference Include="System.ValueTuple">
       <HintPath>..\packages\System.ValueTuple.4.4.0\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
     </Reference>
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\FoxLib\FoxLib.fsproj">
       <Name>FoxLib</Name>
       <Project>{9f70a1e9-5b82-4324-becf-f5e346581860}</Project>

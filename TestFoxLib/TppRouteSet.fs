@@ -150,7 +150,7 @@ let ``edge events should write even when not in edge list`` () =
 
     use stream = new MemoryStream()
     use writer = new BinaryWriter(stream)
-    RouteSet.Write (createWriteFunctions writer) routeSet |> ignore
+    RouteSet.Write (createWriteFunctions writer) routeSet
 
     stream.Position <- 0L
 
@@ -158,3 +158,28 @@ let ``edge events should write even when not in edge list`` () =
     createReadFunctions reader
     |> RouteSet.Read
     |> fun readRouteSet -> areRouteSetsIdentical readRouteSet routeSet |> Assert.IsTrue
+
+[<Test>]
+[<Category("TppRouteSet")>]
+let ``vanilla frt should repack with identical contents`` () =
+    let baseDirectory = __SOURCE_DIRECTORY__
+    let inputFilePath = "test.frt"
+    let inputFullPath = Path.Combine(baseDirectory, inputFilePath)
+    use inputStream = new FileStream(inputFullPath, FileMode.Open)
+    use reader = new BinaryReader(inputStream)
+
+    let routeSet = createReadFunctions reader |> RouteSet.Read
+
+    let outputFilePath = "test repacked.frt"
+    let outputFullPath = Path.Combine(baseDirectory, outputFilePath)
+    use outputStream = new FileStream(outputFullPath, FileMode.Create)
+    use writer = new BinaryWriter(outputStream)
+    RouteSet.Write (createWriteFunctions writer) routeSet
+
+    inputStream.Dispose()
+    outputStream.Dispose()
+
+    let inputBytes = File.ReadAllBytes inputFullPath
+    let outputBytes = File.ReadAllBytes outputFullPath
+    
+    Assert.AreEqual(inputBytes, outputBytes)

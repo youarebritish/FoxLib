@@ -150,10 +150,11 @@ let private buildNodes nodePositions (edgeEvents:RouteEvent[]) (events:RouteEven
     |> Array.zip edgeEvents
     |> Array.zip events
     |> Array.map (fun nodeData ->   let edgeEvent = snd nodeData |> fst
+                                    let events = fst nodeData |> Seq.filter (fun event -> event <> edgeEvent)
 
                                     { Position = snd nodeData |> snd;
                                     EdgeEvent = edgeEvent;
-                                    Events = fst nodeData } )
+                                    Events = events } )
 
 /// <summary>
 /// Construct routes.
@@ -379,13 +380,35 @@ let private writeEventTable writeUInt16 eventTable =
     eventTable.EdgeEventIndex |> writeUInt16
 
 /// <summary>
+/// Calculate the number of events to write for a node.
+/// </summary>
+/// <param name="allNodes">All nodes in the routeset.</param>
+/// <param name="nodeIndex">The node index.</param>
+let private getNodeEventCount allNodes nodeIndex =
+    let node = Array.item nodeIndex allNodes
+    
+    let wasEdgeEventPreviouslyUsed = allNodes
+                                    |> Array.take nodeIndex
+                                    |> Array.map (fun node -> node.EdgeEvent)
+                                    |> Array.contains node.EdgeEvent
+
+    let nodeEventCount = Seq.length node.Events
+
+    match wasEdgeEventPreviouslyUsed with
+    | true -> nodeEventCount
+    | false -> nodeEventCount + 1
+
+/// <summary>
 /// Make an event table for a node.
 /// </summary>
 /// <param name="allEvents">All events in the routeset.</param>
 /// <param name="node">The node.</param>
-let private makeEventTable allEvents node =
+let private makeEventTable allEvents allNodes nodeIndex =
+    let node = Seq.item nodeIndex allNodes
     let edgeEventIndex = allEvents |> Seq.findIndex (fun event -> event = node.EdgeEvent)
-    { EventCount = node.Events |> Seq.length |> uint16;
+    let eventCount = getNodeEventCount allNodes nodeIndex
+
+    { EventCount = eventCount |> uint16;
     EdgeEventIndex = edgeEventIndex |> uint16 }
 
 /// <summary>
@@ -419,26 +442,6 @@ let private getEventTableOffsetForNode (eventTablesOffset : uint32) nodeIndex =
 /// <param name="eventIndex">Index of the event.</param>
 let private getOffsetForEvent (eventsOffset : uint32) eventIndex =
     eventsOffset + (uint32 eventIndex * 48u)
-
-/// <summary>
-/// Calculate the number of events to write for a node.
-/// </summary>
-/// <param name="allNodes">All nodes in the routeset.</param>
-/// <param name="nodeIndex">The node index.</param>
-let private getNodeEventCount allNodes nodeIndex =
-    let node = Array.item nodeIndex allNodes
-    
-    let wasEdgeEventPreviouslyUsed = allNodes
-                                    |> Array.take nodeIndex
-                                    |> Array.map (fun node -> node.EdgeEvent)
-                                    |> Array.contains node.EdgeEvent
-
-    let nodeEventCount = Seq.length node.Events
-
-    match wasEdgeEventPreviouslyUsed with
-    | true -> nodeEventCount
-    | false -> nodeEventCount + 1
-
 
 /// <summary>
 /// Calculate the number of events to write for a route.
@@ -649,8 +652,7 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
                    |> Seq.toArray
 
     let allEvents = allNodes
-                    |> Seq.collect (fun node -> seq [node.EdgeEvent]
-                                                |> Seq.append node.Events )
+                    |> Seq.collect (fun node -> node.Events |> Seq.append (seq [node.EdgeEvent]) )
                     |> Seq.toArray
                     |> Seq.distinct
                     
@@ -673,8 +675,8 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
     |> Seq.iter (fun node -> Vector3.Write node convertedWriteFunctions.WriteSingle)
 
     // Write event tables.
-    allNodes
-    |> Seq.map (makeEventTable allEvents)
+    [0..Seq.length allNodes - 1]
+    |> Seq.map (fun index -> makeEventTable allEvents allNodes index)
     |> Seq.toArray
     |> Seq.iter (writeEventTable convertedWriteFunctions.WriteUInt16)
     
