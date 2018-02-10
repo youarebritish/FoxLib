@@ -383,9 +383,10 @@ let private writeEventTable writeUInt16 eventTable =
 /// Calculate the number of events to write for a node.
 /// </summary>
 /// <param name="allNodes">All nodes in the routeset.</param>
-/// <param name="nodeIndex">The node index.</param>
-let private getNodeEventCount allNodes nodeIndex =
-    let node = Seq.item nodeIndex allNodes
+/// <param name="node">The node.</param>
+let private getNodeEventCount allNodes node =
+    let nodeIndex = allNodes
+                    |> Seq.findIndex (fun otherNode -> otherNode = node)
     
     let wasEdgeEventPreviouslyUsed = allNodes
                                     |> Seq.take nodeIndex
@@ -406,7 +407,7 @@ let private getNodeEventCount allNodes nodeIndex =
 let private makeEventTable allEvents allNodes nodeIndex =
     let node = Seq.item nodeIndex allNodes
     let edgeEventIndex = allEvents |> Seq.findIndex (fun event -> event = node.EdgeEvent)
-    let eventCount = getNodeEventCount allNodes nodeIndex
+    let eventCount = getNodeEventCount allNodes node
 
     { EventCount = eventCount |> uint16;
     EdgeEventIndex = edgeEventIndex |> uint16 }
@@ -450,7 +451,7 @@ let private getOffsetForEvent (eventsOffset : uint32) eventIndex =
 /// <param name="route">The route.</param>
 let private getRouteEventCount allNodes route =
     route.Nodes
-    |> Seq.mapi (fun index _ -> getNodeEventCount allNodes index)
+    |> Seq.map (fun node -> getNodeEventCount allNodes node)
     |> Seq.sum
 
 /// <summary>
