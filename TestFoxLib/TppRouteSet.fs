@@ -166,14 +166,14 @@ let ``vanilla frt should repack with identical contents`` () =
     let inputFilePath = "test.frt"
     let inputFullPath = Path.Combine(baseDirectory, inputFilePath)
     use inputStream = new FileStream(inputFullPath, FileMode.Open)
-    use reader = new BinaryReader(inputStream)
+    use reader = new BinaryReader(inputStream, getEncoding())
 
     let routeSet = createReadFunctions reader |> RouteSet.Read
 
     let outputFilePath = "test repacked.frt"
     let outputFullPath = Path.Combine(baseDirectory, outputFilePath)
     use outputStream = new FileStream(outputFullPath, FileMode.Create)
-    use writer = new BinaryWriter(outputStream)
+    use writer = new BinaryWriter(outputStream, getEncoding())
     RouteSet.Write (createWriteFunctions writer) routeSet
 
     inputStream.Dispose()

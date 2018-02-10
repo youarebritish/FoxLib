@@ -385,12 +385,12 @@ let private writeEventTable writeUInt16 eventTable =
 /// <param name="allNodes">All nodes in the routeset.</param>
 /// <param name="nodeIndex">The node index.</param>
 let private getNodeEventCount allNodes nodeIndex =
-    let node = Array.item nodeIndex allNodes
+    let node = Seq.item nodeIndex allNodes
     
     let wasEdgeEventPreviouslyUsed = allNodes
-                                    |> Array.take nodeIndex
-                                    |> Array.map (fun node -> node.EdgeEvent)
-                                    |> Array.contains node.EdgeEvent
+                                    |> Seq.take nodeIndex
+                                    |> Seq.collect (fun node -> Seq.append node.Events (seq [node.EdgeEvent]))
+                                    |> Seq.contains node.EdgeEvent
 
     let nodeEventCount = Seq.length node.Events
 
