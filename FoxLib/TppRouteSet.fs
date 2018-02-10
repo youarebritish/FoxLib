@@ -14,24 +14,25 @@ type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, pa
 
     let paramsSequence : seq<Object> = seq [param1; param2; param3; param4; param5; param6; param7; param8; param9; param10];
     
-    member this.EventType = eventType;
-    member this.Param1 = param1;
-    member this.Param2 = param2;
-    member this.Param3 = param3;
-    member this.Param4 = param4;
-    member this.Param5 = param5;
-    member this.Param6 = param6;
-    member this.Param7 = param7;
-    member this.Param8 = param8;
-    member this.Param9 = param9;
-    member this.Param10 = param10;
-    member this.Snippet = snippet;
+    member __.EventType = eventType;
+    member __.Param1 = param1;
+    member __.Param2 = param2;
+    member __.Param3 = param3;
+    member __.Param4 = param4;
+    member __.Param5 = param5;
+    member __.Param6 = param6;
+    member __.Param7 = param7;
+    member __.Param8 = param8;
+    member __.Param9 = param9;
+    member __.Param10 = param10;
+    member __.Snippet = snippet;
     
     /// <summary>
     /// Iterable collection of event parameters.
     /// </summary>
-    member this.Params = paramsSequence
+    member __.Params = paramsSequence
 
+    // TODO: Move this into TestFoxLib; shouldn't be publicly exposed
     /// <summary>
     /// Determines whether or not two events are identical.
     /// </summary>
@@ -42,8 +43,8 @@ type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, pa
                                             this.Param4, this.Param5, this.Param6, this.Param7,
                                             this.Param8, this.Param9, this.Param10, this.Snippet) =
                                             (other.EventType, other.Param1, other.Param2, other.Param3,
-                                            other.Param4, other.Param5, other.Param6, other.Param7,
-                                            other.Param8, other.Param9, other.Param10, other.Snippet)
+                                                other.Param4, other.Param5, other.Param6, other.Param7,
+                                                other.Param8, other.Param9, other.Param10, other.Snippet)
 
 /// <summary>
 /// A discrete step along an AI route.
