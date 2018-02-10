@@ -11,6 +11,9 @@ open System.Text
 /// </summary>
 type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, param3:uint32, param4:uint32, param5:uint32,
                         param6:uint32, param7:uint32, param8:uint32, param9:uint32, param10:uint32, snippet:string) =
+
+    let paramsSequence : seq<Object> = seq [param1; param2; param3; param4; param5; param6; param7; param8; param9; param10];
+    
     member this.EventType = eventType;
     member this.Param1 = param1;
     member this.Param2 = param2;
@@ -23,6 +26,11 @@ type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, pa
     member this.Param9 = param9;
     member this.Param10 = param10;
     member this.Snippet = snippet;
+    
+    /// <summary>
+    /// Iterable collection of event parameters.
+    /// </summary>
+    member this.Params = paramsSequence
 
     /// <summary>
     /// Determines whether or not two events are identical.
