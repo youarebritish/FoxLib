@@ -13,6 +13,14 @@ type public ParameterlessRouteEvent() as this =
         member __.EventType = this.EventType
         member __.Params = Seq.empty
 
+type public ``1947843660``() =
+    inherit ParameterlessRouteEvent() with
+        override __.EventType = 1947843660u
+
+type public ``4125130163``() =
+    inherit ParameterlessRouteEvent() with
+        override __.EventType = 4125130163u
+
 /// <summary>
 /// An event whose type hash matches the empty string.
 /// </summary>
