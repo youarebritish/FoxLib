@@ -100,9 +100,12 @@ let private areRoutesIdentical routeA routeB =
     |> not
 
 let private areRouteSetsIdentical (routeSetA : RouteSet) (routeSetB : RouteSet) =
-    [0 .. Seq.length routeSetA.Routes - 1]
+    let sortedRoutesA = routeSetA.Routes |> Seq.sortBy (fun route -> route.Name)
+    let sortedRoutesB = routeSetB.Routes |> Seq.sortBy (fun route -> route.Name)
+
+    [0 .. Seq.length sortedRoutesA - 1]
     |> Seq.exists (fun i ->
-        not <| areRoutesIdentical (Seq.item i routeSetA.Routes) (Seq.item i routeSetB.Routes))
+        not <| areRoutesIdentical (Seq.item i routeSetA.Routes) (Seq.item i sortedRoutesB))
     |> not
 
 [<Test>]

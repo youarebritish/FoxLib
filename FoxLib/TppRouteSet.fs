@@ -646,13 +646,17 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
         convertedWriteFunctions.WriteUInt16
         convertedWriteFunctions.WriteUInt32
 
+    // Sort routes in ascending order of ID.
+    let sortedRoutes = routeSet.Routes
+                        |> Seq.sortBy (fun route -> route.Name)
+
     // Write route IDs.
-    routeSet.Routes
+    sortedRoutes
     |> Seq.toArray
     |> Seq.iter (fun route -> convertedWriteFunctions.WriteUInt32 route.Name)
     
     // Write route definitions.
-    let allNodes = routeSet.Routes                   
+    let allNodes = sortedRoutes                   
                    |> Seq.collect (fun route -> route.Nodes)
                    |> Seq.toArray
 
@@ -662,14 +666,14 @@ let public Write (writeFunctions : WriteFunctions) (routeSet : RouteSet) =
                     |> Seq.distinct
                     
     // TODO: This is calculated twice. Do this earlier and pass this into the route definition build routine.
-    let routeEventCounts = routeSet.Routes
+    let routeEventCounts = sortedRoutes
                             |> Seq.map (fun route -> getRouteEventCount allNodes route)
 
     let getRouteInitialEventIndex index = Seq.take index routeEventCounts |> Seq.sum
 
     let getRouteDefinitionOffset index = getOffsetForRouteDefinition header.RouteDefinitionsOffset index
     
-    routeSet.Routes
+    sortedRoutes
     |> Seq.mapi (fun index route -> route |> buildRouteDefinition allNodes header.NodesOffset header.EventTablesOffset header.EventsOffset (fun () -> getRouteDefinitionOffset index) (getRouteInitialEventIndex index))
     |> Seq.iter (writeRouteDefinition convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteUInt16)
 
