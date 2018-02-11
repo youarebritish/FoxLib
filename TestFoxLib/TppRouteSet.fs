@@ -181,5 +181,5 @@ let ``vanilla frt should repack with identical contents`` () =
 
     let inputBytes = File.ReadAllBytes inputFullPath
     let outputBytes = File.ReadAllBytes outputFullPath
-    
+    //Assert.IsTrue true
     Assert.AreEqual(inputBytes, outputBytes)

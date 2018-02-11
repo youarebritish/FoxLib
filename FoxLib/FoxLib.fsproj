@@ -32,8 +32,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>bin\$(Configuration)\$(AssemblyName).XML</DocumentationFile>
-    <OtherFlags>
-    </OtherFlags>
+    <OtherFlags>--standalone</OtherFlags>
   </PropertyGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
@@ -61,6 +60,7 @@
     <Compile Include="GimmickLocator.fs" />
     <Compile Include="GimmickLocatorSet.fs" />
     <Compile Include="TppRouteSet.fs" />
+    <Compile Include="TppRouteSetEvent.fs" />
     <Compile Include="TppRailUniqueIdFile.fs" />
     <Content Include="packages.config" />
   </ItemGroup>

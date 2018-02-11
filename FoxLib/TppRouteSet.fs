@@ -5,8 +5,14 @@ open System
 open FoxLib
 open System.Linq
 open System.Text
-open System
-open System
+
+type public IRouteEvent =
+    abstract member EventType : StrCode32Hash
+
+    /// <summary>
+    /// Iterable collection of event parameters.
+    /// </summary>
+    abstract member Params : seq<Object>
 
 /// <summary>
 /// Behavior for an AI agent to perform at a route node.
@@ -16,7 +22,6 @@ type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, pa
 
     let paramsSequence : seq<Object> = seq [param1; param2; param3; param4; param5; param6; param7; param8; param9; param10];
     
-    member __.EventType = eventType;
     member __.Param1 = param1;
     member __.Param2 = param2;
     member __.Param3 = param3;
@@ -27,12 +32,11 @@ type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, pa
     member __.Param8 = param8;
     member __.Param9 = param9;
     member __.Param10 = param10;
-    member __.Snippet = snippet;
+    member __.Snippet = snippet;    
     
-    /// <summary>
-    /// Iterable collection of event parameters.
-    /// </summary>
-    member __.Params = paramsSequence
+    interface IRouteEvent with
+        member __.EventType = eventType
+        member __.Params = paramsSequence        
 
     // TODO: Move this into TestFoxLib; shouldn't be publicly exposed
     /// <summary>
@@ -41,10 +45,10 @@ type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, pa
     /// <param name="this">The first node.</param>
     /// <param name="other">The node with which to compare.</param>
     static member isIdentical(this : RouteEvent) (other : RouteEvent) =
-        (this.EventType, this.Param1, this.Param2, this.Param3,
+        ((this :> IRouteEvent).EventType, this.Param1, this.Param2, this.Param3,
                                             this.Param4, this.Param5, this.Param6, this.Param7,
                                             this.Param8, this.Param9, this.Param10, this.Snippet) =
-                                            (other.EventType, other.Param1, other.Param2, other.Param3,
+                                            ((other :> IRouteEvent).EventType, other.Param1, other.Param2, other.Param3,
                                                 other.Param4, other.Param5, other.Param6, other.Param7,
                                                 other.Param8, other.Param9, other.Param10, other.Snippet)
 
@@ -350,7 +354,7 @@ let public Read (readFunctions : ReadFunctions) =
 /// <param name="writeChar">Function to write a char.</param>
 /// <param name="event">The event to write.</param>
 let private writeEvent writeHash writeUInt32 writeChar (event:RouteEvent) =
-    writeHash event.EventType
+    writeHash (event :> IRouteEvent).EventType
 
     writeUInt32 event.Param1
     writeUInt32 event.Param2
