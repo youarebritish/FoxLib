@@ -52,21 +52,16 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Core\Core.fs" />
-    <Compile Include="Core\Vector3.fs" />
-    <Compile Include="Core\Vector4.fs" />
-    <Compile Include="Core\WideVector3.fs" />
-    <Compile Include="Core\Quaternion.fs" />
-    <Compile Include="Core\ColorRGB.fs" />
-    <Compile Include="Core\ColorRGBA.fs" />
-    <Compile Include="GimmickLocator\GimmickLocator.fs" />
-    <Compile Include="GimmickLocator\GimmickLocatorSet.fs" />
-    <Compile Include="TppRouteSet\TppRouteSet.fs" />
-    <Compile Include="TppRouteSet\TppRouteSetEvent.fs" />
-    <Compile Include="TppRailUniqueId\TppRailUniqueIdFile.fs" />
-    <Compile Include="MaterialParamBinary\MaterialParamBinary.fs" />
-    <Compile Include="PrecomputedSkyParameters\PrecomputedSkyParameters.fs" />
-    <Compile Include="FoxRig\FoxRig.fs" />
+    <Compile Include="Core.fs" />
+    <Compile Include="Vector3.fs" />
+    <Compile Include="Vector4.fs" />
+    <Compile Include="WideVector3.fs" />
+    <Compile Include="Quaternion.fs" />
+    <Compile Include="GimmickLocator.fs" />
+    <Compile Include="GimmickLocatorSet.fs" />
+    <Compile Include="TppRouteSet.fs" />
+    <Compile Include="TppRouteSetEvent.fs" />
+    <Compile Include="TppRailUniqueIdFile.fs" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
