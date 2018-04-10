@@ -1,4 +1,5 @@
 ﻿module FoxLib.Core
+open System
 
 /// <summary>
 /// A point or vector in 3D space.
@@ -47,13 +48,28 @@ type public Quaternion = {
 }
 
 /// <summary>
-/// An RGBA color.
+/// An RGB color.
 /// </summary>
-type public Color =  {
+type public ColorRGB =  {
+    Red : float32
+    Green : float32
+    Blue : float32
+}
+
+/// <summary>
+/// An RGB color.
+/// </summary>
+type public ColorRGBA =  {
     Red : float32
     Green : float32
     Blue : float32
     Alpha : float32
+}
+
+type public Pixel = {
+    X : int
+    Y : int
+    Color : ColorRGBA
 }
     
 /// <summary>

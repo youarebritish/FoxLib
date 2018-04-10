@@ -5,8 +5,10 @@ Library for reading and writing Fox Engine file formats. Currently supported for
 |-----------|-------------------------------|----------------|---------------|
 | lba       | GimmickLocatorSet             | Yes            | Yes           |
 | frt       | TppRouteSet                   | Yes            | Yes           |
+| fmtt		| MaterialParamBinary			| Yes			 | Yes			 |
+| pcsp      | PrecomputedSkyParameters      | Coming in 1.2  | Coming in 1.2 |
+| frig		| FoxRig						| Coming in 1.2  | Coming in 1.2 |
 | frld      | RailUniqueIdFile              | Coming in 1.2  | Coming in 1.2 |
-| pcsp      | PrecomputedSkyParameters      | Coming in 1.3  | Coming in 1.3 |
 
 For examples of usage, see [FoxLibExamples](https://github.com/youarebritish/FoxLibExamples).
 
