@@ -52,22 +52,26 @@ let ``one random MaterialParamBinary should have original value when read`` () =
 [<Test>]
 [<Category("MaterialParamBinary")>]
 let ``read and then written "material_param.fmtt" should have original value when read`` () =
-    use originalReadStream = new FileStream("C:/users/joey3/Downloads/material_params.fmtt", FileMode.Open)
+    let baseDirectory = __SOURCE_DIRECTORY__
+
+    let originalFilePath = Path.Combine(baseDirectory, "test.fmtt")
+    use originalReadStream = new FileStream(originalFilePath, FileMode.Open)
     use originalReader = new BinaryReader(originalReadStream)
     
     let originalFile = createReadFunction originalReader
                        |> Read
 
-    use originalWriteStream = new FileStream("C:/users/joey3/Downloads/test_material_params.fmtt", FileMode.Create)
-    use originalWriter = new BinaryWriter(originalWriteStream)
+    let newFilePath = Path.Combine(baseDirectory, "test repacked.fmtt")
+    use newWriteStream = new FileStream(newFilePath, FileMode.Create)
+    use newWriter = new BinaryWriter(newWriteStream)
 
-    do createWriteFunction originalWriter
+    do createWriteFunction newWriter
        |> Write originalFile
        |> ignore
 
-    do originalWriter.Close()
+    do newWriter.Close()
 
-    use newReadStream = new FileStream("C:/users/joey3/Downloads/test_material_params.fmtt", FileMode.Open)
+    use newReadStream = new FileStream(newFilePath, FileMode.Open)
     use newReader = new BinaryReader(newReadStream)
 
     let newFile = createReadFunction newReader
