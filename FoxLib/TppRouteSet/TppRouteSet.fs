@@ -32,11 +32,13 @@ type public RouteEvent(eventType:StrCode32Hash, param1:uint32, param2:uint32, pa
     member __.Param8 = param8;
     member __.Param9 = param9;
     member __.Param10 = param10;
-    member __.Snippet = snippet;    
+    member __.Snippet = snippet;
+    member __.EventType = eventType
+    member __.Params = paramsSequence
     
     interface IRouteEvent with
         member __.EventType = eventType
-        member __.Params = paramsSequence        
+        member __.Params = paramsSequence
 
     // TODO: Move this into TestFoxLib; shouldn't be publicly exposed
     /// <summary>
@@ -538,7 +540,7 @@ let private getEventTablesOffset nodesOffset (nodeCount : uint16) =
 /// <param name="eventTablesOffset">Offset for where event tables start in the frt file.</param>
 /// <param name="nodeCount">Number of nodes in the routeset.</param>
 let private getEventsOffset eventTablesOffset (nodeCount : uint16) =
-    eventTablesOffset + (uint32 nodeCount * uint32 sizeof<EventTable>)
+    eventTablesOffset + (uint32 nodeCount * 4u)
     
 /// <summary>
 /// Construct header data for a routeset.
