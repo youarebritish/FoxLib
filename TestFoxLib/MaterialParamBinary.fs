@@ -38,6 +38,8 @@ let ``one random MaterialParamBinary should have original value when read`` () =
     createWriteFunction writer
     |> FoxLib.MaterialParamBinary.Write randomMaterialPreset
     |> ignore
+
+    writer.Close()
         
     stream.Position <- 0L
 
@@ -49,9 +51,11 @@ let ``one random MaterialParamBinary should have original value when read`` () =
         | i when i = randomMaterialPreset -> true |> Assert.IsTrue
         | _ -> Assert.Fail()
 
+    reader.Close()
+
 [<Test>]
 [<Category("MaterialParamBinary")>]
-let ``read and then written "material_param.fmtt" should have original value when read`` () =
+let ``read and then written "test.fmtt" should have original value when read`` () =
     let baseDirectory = __SOURCE_DIRECTORY__
 
     let originalFilePath = Path.Combine(baseDirectory, "test.fmtt")
@@ -60,6 +64,8 @@ let ``read and then written "material_param.fmtt" should have original value whe
     
     let originalFile = createReadFunction originalReader
                        |> Read
+
+    do originalReader.Close()
 
     let newFilePath = Path.Combine(baseDirectory, "test repacked.fmtt")
     use newWriteStream = new FileStream(newFilePath, FileMode.Create)
@@ -76,6 +82,8 @@ let ``read and then written "material_param.fmtt" should have original value whe
 
     let newFile = createReadFunction newReader
                   |> Read
+
+    do newReader.Close()
 
     do match originalFile with
        | i when i = newFile -> true |> Assert.IsTrue
