@@ -61,9 +61,9 @@
     <Compile Include="Core\ColorRGBA.fs" />
     <Compile Include="GimmickLocator\GimmickLocator.fs" />
     <Compile Include="GimmickLocator\GimmickLocatorSet.fs" />
-    <Compile Include="TppRouteSet\TppRouteSet.fs" />
-    <Compile Include="TppRouteSet\TppRouteSetEvent.fs" />
-    <Compile Include="TppRailUniqueId\TppRailUniqueIdFile.fs" />
+    <Compile Include="RouteSet\TppRouteSet.fs" />
+    <Compile Include="RouteSet\TppRouteSetEvent.fs" />
+    <Compile Include="Rail\TppRailUniqueIdFile.fs" />
     <Compile Include="MaterialParamBinary\MaterialParamBinary.fs" />
     <Compile Include="PrecomputedSkyParameters\PrecomputedSkyParameters.fs" />
     <Compile Include="FoxRig\FoxRig.fs" />
