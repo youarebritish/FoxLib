@@ -134,12 +134,6 @@ let public Write materialPresets writeFunction =
     let convertedWriteFunction = convertWriteFunction writeFunction
 
     let correctedMaterialParams = getCorrectedNumberOfMaterialPresets materialPresets 256
-<<<<<<< HEAD
 
     correctedMaterialParams
     |> Array.map (fun materialPreset -> writeMaterialPreset materialPreset convertedWriteFunction.WriteSingle)
-=======
-    let writeMaterialParams correctedMaterialParams = correctedMaterialParams
-                                                      |> Array.map (fun materialPreset -> writeMaterialPreset materialPreset convertedWriteFunction.WriteSingle)
-    writeMaterialParams correctedMaterialParams
->>>>>>> b18b74c5e9fa871de4dc5d68e5a12a7c472a5a1c

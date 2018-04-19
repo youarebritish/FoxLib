@@ -33,27 +33,15 @@ let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
     { ConvertedReadFunctions.ReadHalf = rawReadFunctions.ReadHalf.Invoke;
     ReadUInt32 = rawReadFunctions.ReadUInt32.Invoke; }
 
+/// <summmary>
+/// Parses a PrecomputedSkyParameter from pcsp format.
+/// </summmary>
+/// <param name="readFunction">Function to read a data type from the input.</param>
+/// <returns>The parsed PrecomputedSkyParameter.</returns>
 let public Read readFunctions =
     let convertedFunctions = convertReadFunctions readFunctions
 
-    let xDimension = 128
-    let yDimension = 64
-
     convertedFunctions.ReadUInt32() |> ignore
-
-    //let pixels : HalfColorRGBA[] =
-
-    //    let rows = [|1..xDimension|]
-    //                |> Array.map (fun _ -> 
-    //                                       let test = FoxLib.HalfColorRGBA.Read convertedFunctions.ReadHalf
-    //                                       test)
-
-    //    let columns = [|1..yDimension|]
-    //                   |> Array.map (fun _ -> rows)
-
-    //    let readPixel = Array.concat columns
-    //    readPixel
-    //pixels
 
     [|1..8192|] |> Array.map (fun _ -> FoxLib.HalfColorRGBA.Read convertedFunctions.ReadHalf)
 
@@ -87,23 +75,15 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
     { ConvertedWriteFunctions.WriteHalf = rawWriteFunctions.WriteHalf.Invoke;
     WriteUInt32 = rawWriteFunctions.WriteUInt32.Invoke; }
 
-let public Write (pixels : HalfColorRGBA[]) writeFunctions =
+/// <summary>
+/// Writes a PrecomputedSkyParameters texture to pcsp format.
+/// </summary>
+/// <param name="writeFunction">Function to write a data type.</param>
+/// <param name="pixels">Texture to write.</param>
+let public Write pixels writeFunctions =
     let convertedFunctions = convertWriteFunctions writeFunctions
-
-    //let xDimension = 128
-    //let yDimension = 64
 
     convertedFunctions.WriteUInt32 1u
 
-    //[|0..(yDimension - 1)|]
-    // |> Array.map (fun yCoord -> [|0..(xDimension - 1)|]
-    //                              |> Array.map (fun xCoord -> let coordinate = (xCoord + (yCoord * xDimension))
-    //                                                          FoxLib.HalfColorRGBA.Write convertedFunctions.WriteHalf pixels.[coordinate] ))
-
     pixels 
-           |> 
-              Array.map 
-                        (fun i -> 
-                                  i 
-                                    |> 
-                                       FoxLib.HalfColorRGBA.Write convertedFunctions.WriteHalf)
+    |> Array.map (fun pixel -> pixel |> FoxLib.HalfColorRGBA.Write convertedFunctions.WriteHalf)
