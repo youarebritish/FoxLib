@@ -16,7 +16,7 @@ type public MaterialPreset = {
 }
 
 /// <summmary>
-/// Input functions to the Read function.
+/// Input function to the Read function.
 /// </summmary>
 type public ReadFunction = {
     /// Function to read a float32.
@@ -33,7 +33,7 @@ type private ConvertedReadFunction = {
 /// <summmary>
 /// Converts the Read function's .NET Func into an F# function.
 /// </summmary>
-/// <param name="rawReadFunctions">Input function supplied to the Read function.</param>
+/// <param name="rawReadFunction">Input function supplied to the Read function.</param>
 /// <returns>The converted function.</returns>
 let private convertReadFunction (rawReadFunction : ReadFunction) =
     if rawReadFunction.ReadSingle |> isNull then nullArg "ReadSingle"
@@ -55,7 +55,7 @@ let private readMaterialPreset readSingle =
 /// <summmary>
 /// Parses a MaterialParamBinary from fmtt format.
 /// </summmary>
-/// <param name="readFunctions">Function to read a data type from the input.</param>
+/// <param name="readFunction">Function to read a data type from the input.</param>
 /// <returns>The parsed MaterialParamBinary.</returns>
 let public Read readFunction =
     let convertedFunction = convertReadFunction readFunction
@@ -75,7 +75,7 @@ type public WriteFunction = {
 }
 
 /// <summmary>
-/// Write parameterzas converted to an F# function.
+/// Write parameter converted to an F# function.
 /// </summmary>
 type private ConvertedWriteFunction = {
     WriteSingle : float32 -> unit
@@ -84,7 +84,7 @@ type private ConvertedWriteFunction = {
 /// <summmary>
 /// Converts the Write function's .NET Func into an F# function.
 /// </summmary>
-/// <param name="rawWriteFunctions">Input function supplied to the Write function.</param>
+/// <param name="rawWriteFunction">Input function supplied to the Write function.</param>
 /// <returns>The converted function.</returns>
 let private convertWriteFunction (rawWriteFunction : WriteFunction) =
     if rawWriteFunction.WriteSingle |> isNull then nullArg "WriteSingle"
@@ -92,16 +92,26 @@ let private convertWriteFunction (rawWriteFunction : WriteFunction) =
     { ConvertedWriteFunction.WriteSingle = rawWriteFunction.WriteSingle.Invoke }
 
 /// <summary>
-/// Gets a correct material preset set, as there need to be exactly 256 material presets.
+/// Creates pseudo-null material presets.
+/// </summary>
+/// <param name="numPresets"></param>
+/// <remarks>
+/// "Null" presets are not quite null; the F0 value is 1.
+/// </remarks>
+/// <returns>The specified number of "null" presets.</returns>
+let private createNullMaterialPresets numPresets = [|1..numPresets|] 
+                                                    |> Array.map (fun _ -> { F0 = 1.0f; RoughnessThreshold = 0.0f; ReflectionDependDiffuse = 0.0f; AnisotropicRoughness = 0.0f; SpecularColor = { Red = 0.0f; Green = 0.0f; Blue = 0.0f }; Translucency = 0.0f; } )
+
+/// <summary>
+/// Gets a correctly-sized material preset set, as there need to be exactly 256 material presets.
 /// </summary>
 /// <param name="materialPresets">The array of material presets to be set up for writing.</param>
-/// <param name="materialPresets>The amount of material presets that should be written.</param>
-/// <returns>The corrected array of material presets.</returns>
-let private getCorrectedMaterialPresets (materialPresets : MaterialPreset[]) fixedMaterialPresetCount =
+/// <param name="neededMaterialPresetCount>The amount of material presets that should be written.</param>
+/// <returns>The correctly-sized array of material presets.</returns>
+let private getCorrectedNumberOfMaterialPresets (materialPresets : MaterialPreset[]) neededMaterialPresetCount =
     match materialPresets.Length with
-    | fixedMaterialPresetCount -> materialPresets
-    | i when i < fixedMaterialPresetCount -> Array.zeroCreate (256 - fixedMaterialPresetCount)
-                                             |> Array.append materialPresets
+    | i when i = neededMaterialPresetCount -> materialPresets
+    | i when i < neededMaterialPresetCount -> (createNullMaterialPresets (neededMaterialPresetCount - materialPresets.Length)) |> Array.append materialPresets 
     | _ -> failwith "Error: Material preset count exceeds 256."
 
 let private writeMaterialPreset materialParam writeSingle = 
@@ -117,11 +127,13 @@ let private writeMaterialPreset materialParam writeSingle =
 /// </summary>
 /// <param name="writeFunction">Function to write a data type.</param>
 /// <param name="material">MaterialParamBinary to write.</param>
-/// <remarks>An error will be thrown if more than 256 material presets are passed.</remarks>
+/// <remarks>
+/// An error will be thrown if more than 256 material presets are passed.
+/// </remarks>
 let public Write materialPresets writeFunction =
     let convertedWriteFunction = convertWriteFunction writeFunction
 
-    let correctedMaterialParams = getCorrectedMaterialPresets materialPresets 256
-    let writeMaterialParams correctedMaterialParams = correctedMaterialParams
-                                                      |> Array.map (fun materialPreset -> writeMaterialPreset materialPreset convertedWriteFunction.WriteSingle)
-    writeMaterialParams correctedMaterialParams
+    let correctedMaterialParams = getCorrectedNumberOfMaterialPresets materialPresets 256
+
+    correctedMaterialParams
+    |> Array.map (fun materialPreset -> writeMaterialPreset materialPreset convertedWriteFunction.WriteSingle)

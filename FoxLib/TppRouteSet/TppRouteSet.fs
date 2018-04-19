@@ -288,6 +288,7 @@ type private ConvertedReadFunctions = {
 /// <param name="rawReadFunctions">Input functions supplied to the Read function.</param>
 /// <returns>The converted functions.</returns>
 let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
+    if rawReadFunctions.ReadSingle |> isNull then nullArg "ReadSingle"
     if rawReadFunctions.ReadInt32 |> isNull then nullArg "ReadInt32"
     if rawReadFunctions.ReadUInt16 |> isNull then nullArg "ReadUInt16"
     if rawReadFunctions.ReadUInt32 |> isNull then nullArg "ReadUInt32"

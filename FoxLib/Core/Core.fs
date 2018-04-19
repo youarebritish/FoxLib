@@ -57,7 +57,7 @@ type public ColorRGB =  {
 }
 
 /// <summary>
-/// An RGB color.
+/// An RGBA color.
 /// </summary>
 type public ColorRGBA =  {
     Red : float32
@@ -66,10 +66,23 @@ type public ColorRGBA =  {
     Alpha : float32
 }
 
-type public Pixel = {
-    X : int
-    Y : int
-    Color : ColorRGBA
+/// <summary>
+/// An RGB color.
+/// </summary>
+type public HalfColorRGB =  {
+    Red : Half
+    Green : Half
+    Blue : Half
+}
+
+/// <summary>
+/// An RGBA color.
+/// </summary>
+type public HalfColorRGBA =  {
+    Red : Half
+    Green : Half
+    Blue : Half
+    Alpha : Half
 }
     
 /// <summary>

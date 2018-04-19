@@ -5,12 +5,11 @@ open System.IO
 open FoxLib.Core
 open FoxLib.MaterialParamBinary
 open NUnit.Framework
-open TestFoxLib
 
 let private createRandomMaterialParamBinary (random : Random)= 
     let makeFloat = random.NextDouble >> float32
 
-    let specularColor = { Red = makeFloat(); Blue = makeFloat(); Green = makeFloat(); }
+    let specularColor : ColorRGB = { Red = makeFloat(); Green = makeFloat(); Blue = makeFloat(); }
 
     { F0 = makeFloat();
     RoughnessThreshold = makeFloat();
@@ -30,13 +29,13 @@ let private createReadFunction (reader : BinaryReader) =
 [<Category("MaterialParamBinary")>]
 let ``one random MaterialParamBinary should have original value when read`` () =
     let random = new System.Random()
-    let randomMaterialPreset = [|1..256|]
+    let randomMaterialPresets = [|1..256|]
                                 |> Array.map (fun _ -> createRandomMaterialParamBinary random)
     
     use stream = new MemoryStream()
     use writer = new BinaryWriter(stream)
     createWriteFunction writer
-    |> FoxLib.MaterialParamBinary.Write randomMaterialPreset
+    |> FoxLib.MaterialParamBinary.Write randomMaterialPresets
     |> ignore
         
     stream.Position <- 0L
@@ -46,12 +45,12 @@ let ``one random MaterialParamBinary should have original value when read`` () =
     |> FoxLib.MaterialParamBinary.Read
     |> fun newMaterialPreset ->    
         match newMaterialPreset with
-        | i when i = randomMaterialPreset -> true |> Assert.IsTrue
+        | i when i = randomMaterialPresets -> true |> Assert.IsTrue
         | _ -> Assert.Fail()
 
 [<Test>]
 [<Category("MaterialParamBinary")>]
-let ``read and then written "material_param.fmtt" should have original value when read`` () =
+let ``read and then written "test.fmtt" should have original value when read`` () =
     let baseDirectory = __SOURCE_DIRECTORY__
 
     let originalFilePath = Path.Combine(baseDirectory, "test.fmtt")
@@ -61,15 +60,17 @@ let ``read and then written "material_param.fmtt" should have original value whe
     let originalFile = createReadFunction originalReader
                        |> Read
 
+    originalReader.Close()
+
     let newFilePath = Path.Combine(baseDirectory, "test repacked.fmtt")
     use newWriteStream = new FileStream(newFilePath, FileMode.Create)
     use newWriter = new BinaryWriter(newWriteStream)
 
-    do createWriteFunction newWriter
-       |> Write originalFile
-       |> ignore
+    createWriteFunction newWriter
+    |> Write originalFile
+    |> ignore
 
-    do newWriter.Close()
+    newWriter.Close()
 
     use newReadStream = new FileStream(newFilePath, FileMode.Open)
     use newReader = new BinaryReader(newReadStream)
@@ -77,6 +78,8 @@ let ``read and then written "material_param.fmtt" should have original value whe
     let newFile = createReadFunction newReader
                   |> Read
 
-    do match originalFile with
-       | i when i = newFile -> true |> Assert.IsTrue
-       | _ -> Assert.Fail()
+    newReader.Close()
+
+    match originalFile with
+    | i when i = newFile -> true |> Assert.IsTrue
+    | _ -> Assert.Fail()
