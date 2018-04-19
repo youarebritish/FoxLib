@@ -59,6 +59,8 @@
     <Compile Include="Core\Quaternion.fs" />
     <Compile Include="Core\ColorRGB.fs" />
     <Compile Include="Core\ColorRGBA.fs" />
+    <Compile Include="Core\HalfColorRGB.fs" />
+    <Compile Include="Core\HalfColorRGBA.fs" />
     <Compile Include="GimmickLocator\GimmickLocator.fs" />
     <Compile Include="GimmickLocator\GimmickLocatorSet.fs" />
     <Compile Include="RouteSet\TppRouteSet.fs" />
@@ -68,16 +70,19 @@
     <Compile Include="PrecomputedSkyParameters\PrecomputedSkyParameters.fs" />
     <Compile Include="FoxRig\FoxRig.fs" />
     <Content Include="packages.config" />
+    <Compile Include="FormVariation\FormVariation.fs" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="mscorlib" />
-    <Reference Include="FSharp.Core">
-      <Name>FSharp.Core</Name>
-      <AssemblyName>FSharp.Core.dll</AssemblyName>
-      <HintPath>$(MSBuildProgramFiles32)\Reference Assemblies\Microsoft\FSharp\.NETFramework\v4.0\$(TargetFSharpCoreVersion)\FSharp.Core.dll</HintPath>
+    <Reference Include="FSharp.Core, Version=4.4.3.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\FSharp\.NETFramework\v4.0\4.4.3.0\FSharp.Core.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
     </Reference>
+    <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Half">
+      <HintPath>..\References\System.Half.dll</HintPath>
+    </Reference>
     <Reference Include="System.Numerics" />
     <Reference Include="System.ValueTuple">
       <HintPath>..\packages\System.ValueTuple.4.4.0\lib\netstandard1.0\System.ValueTuple.dll</HintPath>

@@ -16,7 +16,7 @@ type public MaterialPreset = {
 }
 
 /// <summmary>
-/// Input functions to the Read function.
+/// Input function to the Read function.
 /// </summmary>
 type public ReadFunction = {
     /// Function to read a float32.
@@ -33,7 +33,7 @@ type private ConvertedReadFunction = {
 /// <summmary>
 /// Converts the Read function's .NET Func into an F# function.
 /// </summmary>
-/// <param name="rawReadFunctions">Input function supplied to the Read function.</param>
+/// <param name="rawReadFunction">Input function supplied to the Read function.</param>
 /// <returns>The converted function.</returns>
 let private convertReadFunction (rawReadFunction : ReadFunction) =
     if rawReadFunction.ReadSingle |> isNull then nullArg "ReadSingle"
@@ -55,7 +55,7 @@ let private readMaterialPreset readSingle =
 /// <summmary>
 /// Parses a MaterialParamBinary from fmtt format.
 /// </summmary>
-/// <param name="readFunctions">Function to read a data type from the input.</param>
+/// <param name="readFunction">Function to read a data type from the input.</param>
 /// <returns>The parsed MaterialParamBinary.</returns>
 let public Read readFunction =
     let convertedFunction = convertReadFunction readFunction
@@ -75,7 +75,7 @@ type public WriteFunction = {
 }
 
 /// <summmary>
-/// Write parameterzas converted to an F# function.
+/// Write parameter converted to an F# function.
 /// </summmary>
 type private ConvertedWriteFunction = {
     WriteSingle : float32 -> unit
@@ -84,7 +84,7 @@ type private ConvertedWriteFunction = {
 /// <summmary>
 /// Converts the Write function's .NET Func into an F# function.
 /// </summmary>
-/// <param name="rawWriteFunctions">Input function supplied to the Write function.</param>
+/// <param name="rawWriteFunction">Input function supplied to the Write function.</param>
 /// <returns>The converted function.</returns>
 let private convertWriteFunction (rawWriteFunction : WriteFunction) =
     if rawWriteFunction.WriteSingle |> isNull then nullArg "WriteSingle"
@@ -134,6 +134,6 @@ let public Write materialPresets writeFunction =
     let convertedWriteFunction = convertWriteFunction writeFunction
 
     let correctedMaterialParams = getCorrectedNumberOfMaterialPresets materialPresets 256
-    let writeMaterialParams correctedMaterialParams = correctedMaterialParams
-                                                      |> Array.map (fun materialPreset -> writeMaterialPreset materialPreset convertedWriteFunction.WriteSingle)
-    writeMaterialParams correctedMaterialParams
+
+    correctedMaterialParams
+    |> Array.map (fun materialPreset -> writeMaterialPreset materialPreset convertedWriteFunction.WriteSingle)

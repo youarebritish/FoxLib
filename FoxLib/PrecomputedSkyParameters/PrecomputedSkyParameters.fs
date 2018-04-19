@@ -1,46 +1,25 @@
-﻿module PrecomputedSkyParameters
+﻿module FoxLib.PrecomputedSkyParameters
 
 open System
 open FoxLib.Core
-
-/// <summary>
-/// A Fox Engine material preset.
-/// </summary>
-type public MaterialPreset = {
-    F0 : float32
-    RoughnessThreshold : float32
-    ReflectionDependDiffuse : float32
-    AnisotropicRoughness : float32
-    SpecularColor : ColorRGB
-    Translucency : float32
-}
 
 /// <summmary>
 /// Input functions to the Read function.
 /// </summmary>
 type public ReadFunctions = {
-    /// Function to read a float32.
-    ReadSingle : Func<float32>
+    /// Function to read a binary16.
+    ReadHalf : Func<Half>
+    /// Function to read a uint32.
+    ReadUInt32 : Func<uint32>
 }
 
 /// <summmary>
 /// Read parameters converted to F# functions.
 /// </summmary>
 type private ConvertedReadFunctions = {
-    ReadSingle : unit -> float32
+    ReadHalf : unit -> Half
+    ReadUInt32 : unit -> uint32
 }
-
-/// <summary>
-/// Read a material preset.
-/// </summary>
-let private readMaterialPreset readSingle =
-    { F0 = readSingle();
-    RoughnessThreshold = readSingle();
-    ReflectionDependDiffuse = readSingle();
-    AnisotropicRoughness = readSingle();
-    SpecularColor = FoxLib.ColorRGB.Read readSingle;
-    Translucency = readSingle();
-    }
 
 /// <summmary>
 /// Converts the Read function's .NET Funcs into F# functions.
@@ -48,23 +27,63 @@ let private readMaterialPreset readSingle =
 /// <param name="rawReadFunctions">Input functions supplied to the Read function.</param>
 /// <returns>The converted functions.</returns>
 let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
-    if rawReadFunctions.ReadSingle |> isNull then nullArg "ReadSingle"
+    if rawReadFunctions.ReadHalf |> isNull then nullArg "ReadHalf"
+    if rawReadFunctions.ReadUInt32 |> isNull then nullArg "ReadUInt32"
 
-    { ConvertedReadFunctions.ReadSingle = rawReadFunctions.ReadSingle.Invoke }
+    { ConvertedReadFunctions.ReadHalf = rawReadFunctions.ReadHalf.Invoke;
+    ReadUInt32 = rawReadFunctions.ReadUInt32.Invoke; }
 
-let public Read (readFunctions : ReadFunctions) =
+/// <summmary>
+/// Parses a PrecomputedSkyParameter from pcsp format.
+/// </summmary>
+/// <param name="readFunction">Function to read a data type from the input.</param>
+/// <returns>The parsed PrecomputedSkyParameter.</returns>
+let public Read readFunctions =
     let convertedFunctions = convertReadFunctions readFunctions
 
-    let xDimension = 256
-    let yDimension = 2
+    convertedFunctions.ReadUInt32() |> ignore
 
-    let pixels : Pixel[] = 
-        let columns xCoord = [|1..yDimension|] 
-                              |> Array.map (fun yCoord -> { X = xCoord; Y = yCoord; Color = FoxLib.ColorRGBA.Read convertedFunctions.ReadSingle } )
+    [|1..8192|] |> Array.map (fun _ -> FoxLib.HalfColorRGBA.Read convertedFunctions.ReadHalf)
 
-        let rows = [|1..xDimension|]
-                    |> Array.map (fun xCoord -> columns xCoord)
+/// <summmary>
+/// Input functions to the Write function.
+/// </summmary>
+type public WriteFunctions = {
+    /// Function to write a binary16.
+    WriteHalf : Action<Half>
+    /// Function to write a uint32.
+    WriteUInt32 : Action<uint32>
+}
 
-        let readPixel = Array.concat rows
-        readPixel
-    pixels
+/// <summmary>
+/// Write parameters converted to F# functions.
+/// </summmary>
+type private ConvertedWriteFunctions = {
+    WriteHalf : Half -> unit
+    WriteUInt32 : uint32 -> unit
+}
+
+/// <summmary>
+/// Converts the Write function's .NET Funcs into F# functions.
+/// </summmary>
+/// <param name="rawWriteFunctions">Input functions supplied to the Write function.</param>
+/// <returns>The converted functions.</returns>
+let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
+    if rawWriteFunctions.WriteHalf |> isNull then nullArg "WriteHalf"
+    if rawWriteFunctions.WriteUInt32 |> isNull then nullArg "WriteUInt32"
+
+    { ConvertedWriteFunctions.WriteHalf = rawWriteFunctions.WriteHalf.Invoke;
+    WriteUInt32 = rawWriteFunctions.WriteUInt32.Invoke; }
+
+/// <summary>
+/// Writes a PrecomputedSkyParameters texture to pcsp format.
+/// </summary>
+/// <param name="writeFunction">Function to write a data type.</param>
+/// <param name="pixels">Texture to write.</param>
+let public Write pixels writeFunctions =
+    let convertedFunctions = convertWriteFunctions writeFunctions
+
+    convertedFunctions.WriteUInt32 1u
+
+    pixels 
+    |> Array.map (fun pixel -> pixel |> FoxLib.HalfColorRGBA.Write convertedFunctions.WriteHalf)
