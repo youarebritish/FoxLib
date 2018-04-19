@@ -64,11 +64,7 @@ let ``read and then written "test.fmtt" should have original value when read`` (
     let originalFile = createReadFunction originalReader
                        |> Read
 
-<<<<<<< HEAD
     originalReader.Close()
-=======
-    do originalReader.Close()
->>>>>>> b18b74c5e9fa871de4dc5d68e5a12a7c472a5a1c
 
     let newFilePath = Path.Combine(baseDirectory, "test repacked.fmtt")
     use newWriteStream = new FileStream(newFilePath, FileMode.Create)
@@ -86,16 +82,6 @@ let ``read and then written "test.fmtt" should have original value when read`` (
     let newFile = createReadFunction newReader
                   |> Read
 
-<<<<<<< HEAD
     newReader.Close()
 
-    match originalFile with
-    | i when i = newFile -> true |> Assert.IsTrue
-    | _ -> Assert.Fail()
-=======
-    do newReader.Close()
-
-    do match originalFile with
-       | i when i = newFile -> true |> Assert.IsTrue
-       | _ -> Assert.Fail()
->>>>>>> b18b74c5e9fa871de4dc5d68e5a12a7c472a5a1c
+    (originalFile = newFile) |> Assert.IsTrue
