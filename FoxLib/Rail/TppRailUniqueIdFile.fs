@@ -1,7 +1,6 @@
-﻿module TppRailData
+﻿module FoxLib.Tpp.RailUniqueIdFile
 
 open System
-open FoxLib.Tpp.RouteSet
 
 /// <summmary>
 /// Input functions to the Read function.

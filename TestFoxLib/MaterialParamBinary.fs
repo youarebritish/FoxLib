@@ -37,8 +37,6 @@ let ``one random MaterialParamBinary should have original value when read`` () =
     createWriteFunction writer
     |> FoxLib.MaterialParamBinary.Write randomMaterialPresets
     |> ignore
-
-    writer.Close()
         
     stream.Position <- 0L
 
