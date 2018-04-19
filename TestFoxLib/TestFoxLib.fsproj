@@ -59,6 +59,7 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="GimmickLocatorSet.fs" />
     <Compile Include="TppRouteSet.fs" />
+    <Compile Include="TppRailUniqueIdFile.fs" />
     <Compile Include="MaterialParamBinary.fs" />
     <Compile Include="PrecomputedSkyParameters.fs" />
     <Content Include="packages.config" />
