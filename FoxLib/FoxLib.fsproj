@@ -81,7 +81,7 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Half">
-      <HintPath>..\..\..\..\Downloads\csharp-half-code-2\System.Half\bin\Debug\System.Half.dll</HintPath>
+      <HintPath>..\References\System.Half.dll</HintPath>
     </Reference>
     <Reference Include="System.Numerics" />
     <Reference Include="System.ValueTuple">
