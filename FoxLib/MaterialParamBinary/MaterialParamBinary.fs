@@ -114,6 +114,11 @@ let private getCorrectedNumberOfMaterialPresets (materialPresets : MaterialPrese
     | i when i < neededMaterialPresetCount -> (createNullMaterialPresets (neededMaterialPresetCount - materialPresets.Length)) |> Array.append materialPresets 
     | _ -> failwith "Error: Material preset count exceeds 256."
 
+/// <summary>
+/// A function for writing one MaterialPreset.
+/// </summary>
+/// <param name="materialParam">The MaterialPreset.</param>
+/// <param name="writeSingle">A function for writing a float.</param>
 let private writeMaterialPreset materialParam writeSingle = 
     materialParam.F0 |> writeSingle
     materialParam.RoughnessThreshold |> writeSingle
