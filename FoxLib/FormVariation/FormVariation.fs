@@ -346,7 +346,7 @@ let public Read (readFunctions : ReadFunctions) =
 
     { HiddenMeshGroups = hiddenMeshGroups;
     ShownMeshGroups = shownMeshGroups;
-    MaterialInstances = makeTextureSwap materialInstances externalFileHashes;
+    TextureSwaps = makeTextureSwap materialInstances externalFileHashes;
     BoneAttachments = makeBoneAttachment boneConnections externalFileHashes;
     CNPAttachments = makeCNPAttachment CNPConnections externalFileHashes }
 
@@ -566,7 +566,7 @@ let private writeBoneConnections (boneConnections : BoneConnection[]) writeIndex
 /// <param name="CNPConnections">The CNPConnections to write.</param>
 /// <param name="writeHash">A function to write an StrCode32Hash.</param>
 /// <param name="writeIndex">A function to write an index.</param>
-let writeCNPConnections (CNPConnections : CNPConnection[]) writeHash writeIndex =
+let private writeCNPConnections (CNPConnections : CNPConnection[]) writeHash writeIndex =
     CNPConnections
     |> Array.iter (fun CNPConnection ->  writeHash CNPConnection.CNPHash
                                          writeHash CNPConnection.EmptyHash
@@ -646,7 +646,7 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
 /// </summary>
 /// <param name="formVariation">The form variation to write.</param>
 /// <param name="writeFunctions">Functions to write various data types.</param>
-let Write (formVariation : FormVariation) writeFunctions = 
+let public Write (formVariation : FormVariation) writeFunctions = 
     let convertedWriteFunctions = convertWriteFunctions writeFunctions
 
     let materialInstance = makeMaterialInstances formVariation.TextureSwaps
