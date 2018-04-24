@@ -71,8 +71,8 @@ type public TextureSwap = {
 /// </summary>
 type public BoneAttachment = {
     ModelFileHash : StrCode64Hash
-    FrdvFileHash : StrCode64Hash
-    SimFileHash : StrCode64Hash
+    FrdvFileHash : Nullable<StrCode64Hash>
+    SimFileHash : Nullable<StrCode64Hash>
 }
 
 /// <summary>
@@ -81,8 +81,8 @@ type public BoneAttachment = {
 type public CNPAttachment = {
     CNPHash : StrCode32Hash
     ModelFileHash : StrCode64Hash
-    FrdvFileHash : StrCode64Hash
-    SimFileHash : StrCode64Hash
+    FrdvFileHash : Nullable<StrCode64Hash>
+    SimFileHash : Nullable<StrCode64Hash>
 }
 
 /// <summary>
@@ -119,7 +119,7 @@ let private readHeader readEntriesCount readOffset readCount skipBytes =
 
     let numTextures = readEntriesCount();
 
-    skipBytes 4
+    skipBytes 6
 
     let numHiddenMeshGroups = readCount();
     let numShownMeshGroups = readCount();
@@ -152,10 +152,10 @@ let private readHeader readEntriesCount readOffset readCount skipBytes =
 /// <param name="numHiddenMeshGroups">The number of mesh groups to hide.</param>
 /// <returns>Returns a list of mesh groups to be shown.</returns>
 let private readHiddenMeshGroups readHash numHiddenMeshGroups=
-     match numHiddenMeshGroups with
-     | i when i > 0uy -> [|1uy..numHiddenMeshGroups|]
-                          |> Array.map (fun _ -> readHash())
-     | _ -> Array.empty<StrCode32Hash>
+     match Some numHiddenMeshGroups with
+     | Some i -> [|1uy..i|]
+                  |> Array.map (fun _ -> readHash())
+     | None -> Array.empty<StrCode32Hash>
 
 /// <summary>
 /// Function to read a list of mesh groups to be shown.
@@ -164,10 +164,10 @@ let private readHiddenMeshGroups readHash numHiddenMeshGroups=
 /// <param name="readIndex">The number of mesh groups to show.</param>
 /// <returns>Returns a list of mesh groups to be hidden.</returns>
 let private readShownMeshGroups readHash numShownMeshGroups =
-     match numShownMeshGroups with
-     | i when i > 0uy -> [|1uy..numShownMeshGroups|]
-                          |> Array.map (fun _ -> readHash())
-     | _ -> Array.empty<StrCode32Hash>
+     match Some numShownMeshGroups with
+     | Some i -> [|1uy..i|]
+                  |> Array.map (fun _ -> readHash())
+     | None -> Array.empty<StrCode32Hash>
 
 /// <summary>
 /// Function to read material instances.
@@ -178,23 +178,23 @@ let private readShownMeshGroups readHash numShownMeshGroups =
 /// <param name="readIndex">The number of material instance entries.</param>
 /// <returns>Returns a material instance list.</returns>
 let private readMaterialInstances readHash readIndex skipBytes materialInstanceCount = 
-    match materialInstanceCount with
-    | i when i > 0uy -> let materialInstanceHash = [|1uy..materialInstanceCount|]
+    match Some materialInstanceCount with
+    | Some i -> let materialInstanceHash = [|1uy..i|]
                                                     |> Array.map (fun _ -> readHash())
 
-                        let textureTypeHash = [|1uy..materialInstanceCount|]
+                let textureTypeHash = [|1uy..i|]
                                                |> Array.map (fun _ -> readHash())
 
-                        let externalFileListIndex = [|1uy..materialInstanceCount|]
+                let externalFileListIndex = [|1uy..i|]
                                                      |> Array.map (fun _ -> readIndex())
 
-                        skipBytes ((2uy * materialInstanceCount) |> int)
+                skipBytes ((2uy * i) |> int)
     
-                        { MaterialInstanceHash = materialInstanceHash;
-                        TextureTypeHash = textureTypeHash;
-                        ExternalFileListIndex = externalFileListIndex;
-                        }
-    | _ -> { MaterialInstanceHash = Array.Empty<StrCode32Hash>() ; TextureTypeHash = Array.Empty<StrCode32Hash>(); ExternalFileListIndex = Array.Empty<uint16>(); }
+                { MaterialInstanceHash = materialInstanceHash;
+                TextureTypeHash = textureTypeHash;
+                ExternalFileListIndex = externalFileListIndex;
+                }
+    | None -> { MaterialInstanceHash = Array.Empty<StrCode32Hash>() ; TextureTypeHash = Array.Empty<StrCode32Hash>(); ExternalFileListIndex = Array.Empty<uint16>(); }
 
 /// <summary>
 /// Function to read connections connected via bones.
@@ -203,15 +203,15 @@ let private readMaterialInstances readHash readIndex skipBytes materialInstanceC
 /// <param name="readIndex">The number of bone connection entries.</param>
 /// <returns>Returns a bone connection list.</returns>
 let private readBoneConnections readIndex numBoneConnections =
-    match numBoneConnections with
-    | i when i > 0uy -> [|1uy..numBoneConnections|]
-                         |> Array.map (fun _ -> { ExternalFileListIndex = readIndex();
-                                                  ExternalFileListIndexFrdv = readIndex();
-                                                  ExternalFileListIndexUnknown0 = readIndex();
-                                                  ExternalFileListIndexUnknown1 = readIndex();
-                                                  ExternalFileListIndexSim = readIndex();
-                                                  ExternalFileListIndexUnknown2 = readIndex(); })
-    | _ -> Array.empty<BoneConnection>
+    match Some numBoneConnections with
+    | Some numBoneConnections -> [|1uy..numBoneConnections|]
+                                  |> Array.map (fun _ -> { ExternalFileListIndex = readIndex();
+                                                         ExternalFileListIndexFrdv = readIndex();
+                                                         ExternalFileListIndexUnknown0 = readIndex();
+                                                         ExternalFileListIndexUnknown1 = readIndex();
+                                                         ExternalFileListIndexSim = readIndex();
+                                                         ExternalFileListIndexUnknown2 = readIndex(); })
+    | None -> Array.empty<BoneConnection>
 
 /// <summary>
 /// Function to read connections connected via connection points (CNPs).
@@ -220,17 +220,17 @@ let private readBoneConnections readIndex numBoneConnections =
 /// <param name="readIndex">The number of CNP connection entries.</param>
 /// <returns>Returns a CNP connection list.</returns>
 let private readCNPConnections readHash readIndex numCNPConnections =
-    match numCNPConnections with
-    | i when i > 0uy -> [|1uy..numCNPConnections|]
-                         |> Array.map (fun _ -> { CNPHash = readHash();
-                                                  EmptyHash = readHash();
-                                                  ExternalFileListIndex = readIndex();
-                                                  ExternalFileListIndexFrdv = readIndex();
-                                                  ExternalFileListIndexUnknown0 = readIndex();
-                                                  ExternalFileListIndexUnknown1 = readIndex();
-                                                  ExternalFileListIndexSim = readIndex();
-                                                  ExternalFileListIndexUnknown2 = readIndex(); })
-    | _ -> Array.empty<CNPConnection>
+    match Some numCNPConnections with
+    | Some i -> [|1uy..i|]
+                 |> Array.map (fun _ -> { CNPHash = readHash();
+                                        EmptyHash = readHash();
+                                        ExternalFileListIndex = readIndex();
+                                        ExternalFileListIndexFrdv = readIndex();
+                                        ExternalFileListIndexUnknown0 = readIndex();
+                                        ExternalFileListIndexUnknown1 = readIndex();
+                                        ExternalFileListIndexSim = readIndex();
+                                        ExternalFileListIndexUnknown2 = readIndex(); })
+    | None -> Array.empty<CNPConnection>
 
 /// <summary>
 /// Function to read a list of external file hashes.
@@ -238,9 +238,9 @@ let private readCNPConnections readHash readIndex numCNPConnections =
 /// <param name="readHash">Function to read an StrCode32Hash.</param>
 /// <param name="section3Entries">The number of external file hashes.</param>
 /// <returns>Returns a list of external file hashes.</returns>
-let private readExternalFileHashes (readHash : unit -> uint64) section3Entries = 
-    let (hashes : StrCode64Hash[]) = [|0us..section3Entries|]
-                                    |> Array.map (fun _ -> readHash())
+let private readExternalFileHashes readHash section3Entries = 
+    let hashes = [|0us..section3Entries|]
+                  |> Array.map (fun _ -> readHash())
     hashes
 
 /// <summary>
@@ -261,9 +261,19 @@ let private makeTextureSwap (materialInstance : MaterialInstance ) (fileHashes :
 /// <param name="fileHashes">A list of hashed file names as StrCode64 hashes.</param>
 let private makeBoneAttachment (boneConnections : BoneConnection[]) (fileHashes : StrCode64Hash[]) = 
     boneConnections
-    |> Array.map (fun boneConnection -> { ModelFileHash = fileHashes.[boneConnection.ExternalFileListIndex |> int]; 
-                                        FrdvFileHash = fileHashes.[boneConnection.ExternalFileListIndexFrdv |> int]; 
-                                        SimFileHash = fileHashes.[boneConnection.ExternalFileListIndexSim |> int] })
+    |> Array.map (fun boneConnection -> let modelFileHash = fileHashes.[boneConnection.ExternalFileListIndex |> int]
+
+                                        let frdvFileHash = match (boneConnection.ExternalFileListIndexFrdv |> int) with
+                                                           | i when i = 0xFFFF -> System.Nullable()
+                                                           | _ -> new Nullable<StrCode64Hash>(fileHashes.[boneConnection.ExternalFileListIndexFrdv |> int])
+
+                                        let simFileHash = match (boneConnection.ExternalFileListIndexSim |> int) with
+                                                          | i when i = 0xFFFF -> System.Nullable()
+                                                          | _ -> new Nullable<StrCode64Hash>(fileHashes.[boneConnection.ExternalFileListIndexSim |> int])
+        
+                                        { ModelFileHash = modelFileHash;
+                                        FrdvFileHash = frdvFileHash;
+                                        SimFileHash = simFileHash; })
 
 /// <summary>
 /// Converts from a CNPConnection array to a more user-friendly array of CNPAttachments.
@@ -272,10 +282,18 @@ let private makeBoneAttachment (boneConnections : BoneConnection[]) (fileHashes 
 /// <param name="fileHashes">A list of hashed file names as StrCode64 hashes.</param>
 let private makeCNPAttachment (CNPConnections : CNPConnection[]) (fileHashes : StrCode64Hash[]) = 
     CNPConnections
-    |> Array.map (fun CNPConnection -> { CNPHash = CNPConnection.CNPHash;
-                                        ModelFileHash = fileHashes.[CNPConnection.ExternalFileListIndex |> int]; 
-                                        FrdvFileHash = fileHashes.[CNPConnection.ExternalFileListIndexFrdv |> int]; 
-                                        SimFileHash = fileHashes.[CNPConnection.ExternalFileListIndexSim |> int] })
+    |> Array.map (fun CNPConnection -> let frdvFileHash = match (CNPConnection.ExternalFileListIndexFrdv |> int) with
+                                                          | i when i = 0xFFFF -> System.Nullable()
+                                                          | _ -> new Nullable<StrCode64Hash>(fileHashes.[CNPConnection.ExternalFileListIndexFrdv |> int])
+
+                                       let simFileHash = match (CNPConnection.ExternalFileListIndexSim |> int) with
+                                                          | i when i = 0xFFFF -> System.Nullable()
+                                                          | _ -> new Nullable<StrCode64Hash>(fileHashes.[CNPConnection.ExternalFileListIndexSim |> int])
+        
+                                       { CNPHash = CNPConnection.CNPHash;
+                                       ModelFileHash = fileHashes.[CNPConnection.ExternalFileListIndex |> int];
+                                       FrdvFileHash = frdvFileHash; 
+                                       SimFileHash = simFileHash; })
 
 /// <summmary>
 /// Input functions to the Read function.
@@ -388,13 +406,21 @@ let private makeMaterialInstances textureSwaps =
 /// </summary>
 /// <param name="boneAttachments">The BoneAttachment array to convert.</param>
 /// <returns>The converted BoneConnection array.</returns>
-let private makeBoneConnections (boneAttachments : BoneAttachment[]) = 
+let private makeBoneConnections (boneAttachments : BoneAttachment[]) =
     boneAttachments
-    |> Array.map (fun boneAttachment -> { ExternalFileListIndex = getFileIndex boneAttachment.ModelFileHash;
-                                        ExternalFileListIndexFrdv = getFileIndex boneAttachment.FrdvFileHash;
+    |> Array.map (fun boneAttachment -> let frdvValue = match boneAttachment.FrdvFileHash.HasValue with
+                                                        | true -> getFileIndex boneAttachment.FrdvFileHash.Value
+                                                        | _ -> nullValue
+
+                                        let simValue = match boneAttachment.SimFileHash.HasValue with
+                                                        | true -> getFileIndex boneAttachment.SimFileHash.Value
+                                                        | _ -> nullValue
+
+                                        { ExternalFileListIndex = getFileIndex boneAttachment.ModelFileHash;
+                                        ExternalFileListIndexFrdv = frdvValue;
                                         ExternalFileListIndexUnknown0 = nullValue;
                                         ExternalFileListIndexUnknown1 = nullValue;
-                                        ExternalFileListIndexSim = getFileIndex boneAttachment.SimFileHash;
+                                        ExternalFileListIndexSim = simValue;
                                         ExternalFileListIndexUnknown2 = nullValue; })
 
 /// <summary>
@@ -404,14 +430,22 @@ let private makeBoneConnections (boneAttachments : BoneAttachment[]) =
 /// <returns>The converted CNPConnection array.</returns>
 let private makeCNPConnections CNPAttachments = 
     CNPAttachments
-    |> Array.map (fun CNPAttachment -> { CNPHash = CNPAttachment.CNPHash;
-                                        EmptyHash = 0xbf169f98u;
-                                        ExternalFileListIndex = getFileIndex CNPAttachment.ModelFileHash;
-                                        ExternalFileListIndexFrdv = getFileIndex CNPAttachment.FrdvFileHash;
-                                        ExternalFileListIndexUnknown0 = nullValue;
-                                        ExternalFileListIndexUnknown1 = nullValue;
-                                        ExternalFileListIndexSim = getFileIndex CNPAttachment.SimFileHash;
-                                        ExternalFileListIndexUnknown2 = nullValue; })
+    |> Array.map (fun CNPAttachment -> let frdvValue = match CNPAttachment.FrdvFileHash.HasValue with
+                                                        | true -> getFileIndex CNPAttachment.FrdvFileHash.Value
+                                                        | _ -> nullValue
+
+                                       let simValue = match CNPAttachment.SimFileHash.HasValue with
+                                                        | true -> getFileIndex CNPAttachment.SimFileHash.Value
+                                                        | _ -> nullValue
+
+                                       { CNPHash = CNPAttachment.CNPHash;
+                                       EmptyHash = 0xbf169f98u;
+                                       ExternalFileListIndex = getFileIndex CNPAttachment.ModelFileHash;
+                                       ExternalFileListIndexFrdv = frdvValue;
+                                       ExternalFileListIndexUnknown0 = nullValue;
+                                       ExternalFileListIndexUnknown1 = nullValue;
+                                       ExternalFileListIndexSim = simValue;
+                                       ExternalFileListIndexUnknown2 = nullValue; })
 
 /// <summary>
 /// Creates a Header from a FormVariaton.
@@ -484,7 +518,6 @@ let private calculateHeader formVariation =
 let private writeHeader header writeChars writeEntriesCount writeOffset writeCount writeEmptyBytes = 
     let signature = [| 'F'; 'O'; 'V' ; '2' ; 'w'; 'i'; 'n' |]
     writeChars signature
-    writeEmptyBytes 1
 
     writeOffset header.Section2Offset
 

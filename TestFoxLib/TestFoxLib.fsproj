@@ -62,6 +62,7 @@
     <Compile Include="TppRailUniqueIdFile.fs" />
     <Compile Include="MaterialParamBinary.fs" />
     <Compile Include="PrecomputedSkyParameters.fs" />
+    <Compile Include="FormVariation.fs" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
