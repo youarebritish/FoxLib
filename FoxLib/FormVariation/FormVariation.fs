@@ -128,6 +128,8 @@ let private readHeader readEntriesCount readOffset readCount skipBytes =
     let numBoneAttachedModels = readCount();
     let numCNPAttachedModels = readCount();
 
+    skipBytes 2
+
     { Section2Offset = section2Offset;
     ExternalFileSectionOffset = externalFileSectionOffset;
     Section2Entries = section2Entries;
@@ -180,13 +182,13 @@ let private readShownMeshGroups readHash numShownMeshGroups =
 let private readMaterialInstances readHash readIndex skipBytes materialInstanceCount = 
     match Some materialInstanceCount with
     | Some i -> let materialInstanceHash = [|1uy..i|]
-                                                    |> Array.map (fun _ -> readHash())
+                                            |> Array.map (fun _ -> readHash())
 
                 let textureTypeHash = [|1uy..i|]
-                                               |> Array.map (fun _ -> readHash())
+                                       |> Array.map (fun _ -> readHash())
 
                 let externalFileListIndex = [|1uy..i|]
-                                                     |> Array.map (fun _ -> readIndex())
+                                             |> Array.map (fun _ -> readIndex())
 
                 skipBytes ((2uy * i) |> int)
     
@@ -194,7 +196,9 @@ let private readMaterialInstances readHash readIndex skipBytes materialInstanceC
                 TextureTypeHash = textureTypeHash;
                 ExternalFileListIndex = externalFileListIndex;
                 }
-    | None -> { MaterialInstanceHash = Array.Empty<StrCode32Hash>() ; TextureTypeHash = Array.Empty<StrCode32Hash>(); ExternalFileListIndex = Array.Empty<uint16>(); }
+    | None -> { MaterialInstanceHash = Array.Empty<StrCode32Hash>();
+              TextureTypeHash = Array.Empty<StrCode32Hash>();
+              ExternalFileListIndex = Array.Empty<uint16>(); }
 
 /// <summary>
 /// Function to read connections connected via bones.
@@ -250,9 +254,9 @@ let private readExternalFileHashes readHash section3Entries =
 /// <param name="fileHashes">A list of hashed file names as StrCode64 hashes.</param>
 let private makeTextureSwap (materialInstance : MaterialInstance ) (fileHashes : StrCode64Hash[]) = 
     [|1..materialInstance.ExternalFileListIndex.Length|]
-     |> Array.map (fun index -> { MaterialInstanceHash = materialInstance.MaterialInstanceHash.[index]; 
-                                TextureTypeHash = materialInstance.TextureTypeHash.[index]; 
-                                TextureFileHash = fileHashes.[materialInstance.ExternalFileListIndex.[index] |> int] })
+     |> Array.map (fun index -> { MaterialInstanceHash = materialInstance.MaterialInstanceHash.[(index - 1)]; 
+                                TextureTypeHash = materialInstance.TextureTypeHash.[(index - 1)]; 
+                                TextureFileHash = fileHashes.[materialInstance.ExternalFileListIndex.[(index - 1)] |> int] })
 
 /// <summary>
 /// Converts from a BoneConnection array to a more user-friendly array of BoneAttachments.
@@ -344,8 +348,9 @@ let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
 /// Parses a FormVariation list from fv2 format.
 /// </summmary>
 /// <param name="readFunction">Function to read a data type from the input.</param>
+/// <param name="readFunction">Function to set the stream position to a given number.</param>
 /// <returns>The parsed FormVariation list.</returns>
-let public Read (readFunctions : ReadFunctions) =
+let public Read alignStream (readFunctions : ReadFunctions) =
     let convertedFunctions = convertReadFunctions readFunctions
 
     let header = readHeader convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt16 convertedFunctions.ReadByte convertedFunctions.SkipBytes   
@@ -359,6 +364,8 @@ let public Read (readFunctions : ReadFunctions) =
     let boneConnections = readBoneConnections convertedFunctions.ReadUInt16 header.NumBoneAttachedModels
 
     let CNPConnections = readCNPConnections convertedFunctions.ReadUInt32 convertedFunctions.ReadUInt16 header.NumCNPAttachedModels
+
+    alignStream (header.ExternalFileSectionOffset |> int64)
 
     let externalFileHashes = readExternalFileHashes convertedFunctions.ReadUInt64 header.Section3Entries
 
@@ -448,6 +455,13 @@ let private makeCNPConnections CNPAttachments =
                                        ExternalFileListIndexUnknown2 = nullValue; })
 
 /// <summary>
+/// Gets the amount of bytes worth of padding neccesary to align the stream to a factor of 16. given the current stream length.
+/// </summary>
+/// <param name="fileSize">The current position of the stream.</param>
+let private getPaddingNum fileSize = 
+    16us - (fileSize % 16us)
+
+/// <summary>
 /// Creates a Header from a FormVariaton.
 /// </summary>
 /// <param name="formVariation">The FormVariation to convert.</param>
@@ -485,7 +499,11 @@ let private calculateHeader formVariation =
     let fileHashListEntrySize = 8us
     let fileHashListSize = fileHashListEntrySize * (fileList.Length |> uint16)
 
-    let section2Offset = headerSize + hiddenMeshGroupsSize + shownMeshGroupsSize + materialInstanceSize + boneConnectionsSize + CNPConnectionsSize
+    let externalFileSectionOffset = headerSize + hiddenMeshGroupsSize + shownMeshGroupsSize + materialInstanceSize + boneConnectionsSize + CNPConnectionsSize //A temporary variable used for the alignment of the stream in the external file list section (section 4).
+
+    let alignmentPaddingNum = getPaddingNum externalFileSectionOffset
+
+    let section2Offset = externalFileSectionOffset + alignmentPaddingNum
 
     let section3Offset = section2Offset + section2Size
     
@@ -515,8 +533,8 @@ let private calculateHeader formVariation =
 /// <param name="writeOffset">A function to write an offset.</param>
 /// <param name="writeCount">A function to write a count.</param>
 /// <param name="writeEmptyBytes">A function to write a given number of empty bytes.</param>
-let private writeHeader header writeChars writeEntriesCount writeOffset writeCount writeEmptyBytes = 
-    let signature = [| 'F'; 'O'; 'V' ; '2' ; 'w'; 'i'; 'n' |]
+let private writeHeader header writeChars writeEntriesCount writeOffset writeCount writeEmptyBytes =
+    let signature = [| 'F'; 'O'; 'V' ; '2' ; 'w'; 'i'; 'n' ; (0x1 |> char) |]
     writeChars signature
 
     writeOffset header.Section2Offset
@@ -531,11 +549,11 @@ let private writeHeader header writeChars writeEntriesCount writeOffset writeCou
 
     writeEntriesCount header.Section3Entries
 
-    writeEmptyBytes 6
+    writeEmptyBytes 4
 
     writeEntriesCount header.NumTextures
 
-    writeEmptyBytes 4
+    writeEmptyBytes 6
 
     writeCount header.NumHiddenMeshGroups
 
@@ -611,11 +629,17 @@ let private writeCNPConnections (CNPConnections : CNPConnection[]) writeHash wri
                                          writeIndex nullValue)
 
 /// <summary>
-/// Writes an array of StrCode64Hashes to a file.
+/// Writes an array of StrCode64Hashes to a file after aligning the stream to a factor of 16.
 /// </summary>
 /// <param name="hashes">The hashes to write.</param>
 /// <param name="writeHash">A function to write an StrCode64Hash.</param>
-let writeStrCode64Hashes hashes writeHash =
+/// <param name="externalFileSectionOffset">The total byte count of the file.</param>
+/// <param name="writeEmptyBytes">A function to write a given number of empty bytes.</param>
+let writeStrCode64HashesAndAlignFile hashes writeHash externalFileSectionOffset writeEmptyBytes =
+    let test = ((getPaddingNum externalFileSectionOffset) |> int32)
+    
+    do writeEmptyBytes test
+
     hashes
     |> Array.iter (fun hash -> writeHash hash)
 
@@ -678,8 +702,9 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
 /// Writes a FormVariation to fv2 format.
 /// </summary>
 /// <param name="formVariation">The form variation to write.</param>
+/// <param name="getWriterPosition">A function to get the current position of the stream.</param>
 /// <param name="writeFunctions">Functions to write various data types.</param>
-let public Write (formVariation : FormVariation) writeFunctions = 
+let public Write (formVariation : FormVariation) (getWriterPosition : unit -> int64) writeFunctions = 
     let convertedWriteFunctions = convertWriteFunctions writeFunctions
 
     let materialInstance = makeMaterialInstances formVariation.TextureSwaps
@@ -702,4 +727,6 @@ let public Write (formVariation : FormVariation) writeFunctions =
 
     writeCNPConnections CNPConnections convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteUInt16
 
-    writeStrCode64Hashes (List.toArray fileList) convertedWriteFunctions.WriteUInt64
+    let writerPosition = getWriterPosition() |> uint16
+
+    writeStrCode64HashesAndAlignFile (List.toArray fileList) convertedWriteFunctions.WriteUInt64 writerPosition convertedWriteFunctions.WriteEmptyBytes
