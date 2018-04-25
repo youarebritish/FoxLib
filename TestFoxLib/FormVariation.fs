@@ -36,7 +36,8 @@ let private createReadFunctions (reader : BinaryReader) =
     ReadUInt32 = new Func<uint32>(reader.ReadUInt32);
     ReadUInt64 = new Func<uint64>(reader.ReadUInt64);
     ReadByte = new Func<byte>(reader.ReadByte);
-    SkipBytes = new Action<int>(fun numBytes -> reader.ReadBytes numBytes |> ignore) }
+    SkipBytes = new Action<int>(fun numBytes -> reader.ReadBytes numBytes |> ignore);
+    AlignStream = new Action<int64>(fun numBytes -> reader.BaseStream.Position <- numBytes ) }
 
 //[<Test>]
 //[<Category("MaterialParamBinary")>]
@@ -73,7 +74,7 @@ let ``read and then written "test.fv2" should have original value when read`` ()
     use originalReader = new BinaryReader(originalReadStream)
 
     let originalFile = createReadFunctions originalReader
-                       |> Read (fun numBytes -> originalReader.BaseStream.Position <- numBytes)
+                       |> Read
 
     originalReader.Close()
 

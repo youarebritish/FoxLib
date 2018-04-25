@@ -313,6 +313,8 @@ type public ReadFunctions = {
     ReadByte : Func<byte>
     /// Function to skip a number of bytes.
     SkipBytes : Action<int>
+    /// Function to align the stream to a given offset.
+    AlignStream : Action<int64>
 }
 
 /// <summmary>
@@ -324,6 +326,7 @@ type private ConvertedReadFunctions = {
     ReadUInt64 : unit -> uint64
     ReadByte : unit -> byte
     SkipBytes : int -> unit
+    AlignStream : int64 -> unit
 }
 
 /// <summmary>
@@ -337,12 +340,14 @@ let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
     if rawReadFunctions.ReadUInt64 |> isNull then nullArg "ReadUInt64"
     if rawReadFunctions.ReadByte |> isNull then nullArg "ReadByte"
     if rawReadFunctions.SkipBytes |> isNull then nullArg "SkipBytes"
+    if rawReadFunctions.AlignStream |> isNull then nullArg "AlignStream"
 
     { ConvertedReadFunctions.ReadUInt16 = rawReadFunctions.ReadUInt16.Invoke;
     ReadUInt32 = rawReadFunctions.ReadUInt32.Invoke;
     ReadUInt64 = rawReadFunctions.ReadUInt64.Invoke;
     ReadByte = rawReadFunctions.ReadByte.Invoke;
-    SkipBytes = rawReadFunctions.SkipBytes.Invoke; }
+    SkipBytes = rawReadFunctions.SkipBytes.Invoke;
+    AlignStream = rawReadFunctions.AlignStream.Invoke }
 
 /// <summmary>
 /// Parses a FormVariation list from fv2 format.
@@ -350,7 +355,7 @@ let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
 /// <param name="readFunction">Function to read a data type from the input.</param>
 /// <param name="readFunction">Function to set the stream position to a given number.</param>
 /// <returns>The parsed FormVariation list.</returns>
-let public Read alignStream (readFunctions : ReadFunctions) =
+let public Read (readFunctions : ReadFunctions) =
     let convertedFunctions = convertReadFunctions readFunctions
 
     let header = readHeader convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt16 convertedFunctions.ReadByte convertedFunctions.SkipBytes   
@@ -365,7 +370,7 @@ let public Read alignStream (readFunctions : ReadFunctions) =
 
     let CNPConnections = readCNPConnections convertedFunctions.ReadUInt32 convertedFunctions.ReadUInt16 header.NumCNPAttachedModels
 
-    alignStream (header.ExternalFileSectionOffset |> int64)
+    convertedFunctions.AlignStream (header.ExternalFileSectionOffset |> int64)
 
     let externalFileHashes = readExternalFileHashes convertedFunctions.ReadUInt64 header.Section3Entries
 
