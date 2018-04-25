@@ -240,10 +240,10 @@ let private readCNPConnections readHash readIndex numCNPConnections =
 /// Function to read a list of external file hashes.
 /// </summary>
 /// <param name="readHash">Function to read an StrCode32Hash.</param>
-/// <param name="section3Entries">The number of external file hashes.</param>
+/// <param name="section4Entries">The number of external file hashes.</param>
 /// <returns>Returns a list of external file hashes.</returns>
-let private readExternalFileHashes readHash section3Entries = 
-    let hashes = [|0us..section3Entries|]
+let private readExternalFileHashes readHash section4Entries = 
+    let hashes = [|1us..section4Entries|]
                   |> Array.map (fun _ -> readHash())
     hashes
 
@@ -372,7 +372,7 @@ let public Read (readFunctions : ReadFunctions) =
 
     convertedFunctions.AlignStream (header.ExternalFileSectionOffset |> int64)
 
-    let externalFileHashes = readExternalFileHashes convertedFunctions.ReadUInt64 header.Section3Entries
+    let externalFileHashes = readExternalFileHashes convertedFunctions.ReadUInt64 header.ExternalFileSectionEntries
 
     { HiddenMeshGroups = hiddenMeshGroups;
     ShownMeshGroups = shownMeshGroups;
