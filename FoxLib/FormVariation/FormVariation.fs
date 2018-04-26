@@ -360,7 +360,7 @@ let public Read (readFunctions : ReadFunctions) =
 
     let header = readHeader convertedFunctions.ReadUInt16 convertedFunctions.ReadUInt16 convertedFunctions.ReadByte convertedFunctions.SkipBytes   
     
-    let hiddenMeshGroups = readHiddenMeshGroups convertedFunctions.ReadUInt32 header.NumShownMeshGroups
+    let hiddenMeshGroups = readHiddenMeshGroups convertedFunctions.ReadUInt32 header.NumHiddenMeshGroups
     
     let shownMeshGroups = readShownMeshGroups convertedFunctions.ReadUInt32 header.NumShownMeshGroups
 
