@@ -666,6 +666,8 @@ type public WriteFunctions = {
     WriteChars : Action<char[]>
     /// Function to write a number of filler bytes.
     WriteEmptyBytes : Action<int>
+    /// Function to get the writer's current position
+    GetWriterPosition : Func<int64>
 }
 
 /// <summmary>
@@ -679,6 +681,7 @@ type private ConvertedWriteFunctions = {
     WriteBytes : byte[] -> unit
     WriteChars : char[] -> unit
     WriteEmptyBytes : int32 -> unit
+    GetWriterPosition : unit -> int64
 }
 
 /// <summmary>
@@ -694,6 +697,7 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
     if rawWriteFunctions.WriteBytes |> isNull then nullArg "WriteBytes"
     if rawWriteFunctions.WriteChars |> isNull then nullArg "WriteChars"
     if rawWriteFunctions.WriteEmptyBytes |> isNull then nullArg "WriteEmptyBytes"
+    if rawWriteFunctions.GetWriterPosition |> isNull then nullArg "GetWriterPosition"
 
     { WriteUInt16 = rawWriteFunctions.WriteUInt16.Invoke;
     WriteUInt32 = rawWriteFunctions.WriteUInt32.Invoke;
@@ -701,15 +705,15 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
     WriteByte = rawWriteFunctions.WriteByte.Invoke;
     WriteBytes = rawWriteFunctions.WriteBytes.Invoke;
     WriteChars = rawWriteFunctions.WriteChars.Invoke;
-    WriteEmptyBytes = rawWriteFunctions.WriteEmptyBytes.Invoke; }
+    WriteEmptyBytes = rawWriteFunctions.WriteEmptyBytes.Invoke;
+    GetWriterPosition = rawWriteFunctions.GetWriterPosition.Invoke }
 
 /// <summary>
 /// Writes a FormVariation to fv2 format.
 /// </summary>
 /// <param name="formVariation">The form variation to write.</param>
-/// <param name="getWriterPosition">A function to get the current position of the stream.</param>
 /// <param name="writeFunctions">Functions to write various data types.</param>
-let public Write (formVariation : FormVariation) (getWriterPosition : unit -> int64) writeFunctions = 
+let public Write (formVariation : FormVariation) writeFunctions = 
     let convertedWriteFunctions = convertWriteFunctions writeFunctions
 
     let materialInstance = makeMaterialInstances formVariation.TextureSwaps
@@ -732,6 +736,6 @@ let public Write (formVariation : FormVariation) (getWriterPosition : unit -> in
 
     writeCNPConnections CNPConnections convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteUInt16
 
-    let writerPosition = getWriterPosition() |> uint16
+    let writerPosition = convertedWriteFunctions.GetWriterPosition() |> uint16
 
     writeStrCode64HashesAndAlignFile (List.toArray fileList) convertedWriteFunctions.WriteUInt64 writerPosition convertedWriteFunctions.WriteEmptyBytes

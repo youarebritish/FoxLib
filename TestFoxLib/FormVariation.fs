@@ -27,7 +27,8 @@ let private createWriteFunctions (writer : BinaryWriter) =
     WriteByte = new Action<byte>(writer.Write);
     WriteBytes = new Action<byte[]>(writer.Write);
     WriteChars = new Action<char[]>(writer.Write);
-    WriteEmptyBytes = new Action<int>(fun numBytes -> Array.zeroCreate<byte> numBytes |> writer.Write) }
+    WriteEmptyBytes = new Action<int>(fun numBytes -> Array.zeroCreate<byte> numBytes |> writer.Write);
+    GetWriterPosition = new Func<int64>(fun _ -> newWriter.BaseStream.Position) }
 
 let private createReadFunctions (reader : BinaryReader) =
     let readBytes = fun num -> reader.ReadBytes num
@@ -83,7 +84,7 @@ let ``read and then written "test.fv2" should have original value when read`` ()
     use newWriter = new BinaryWriter(newWriteStream)
 
     createWriteFunctions newWriter
-    |> Write originalFile (fun _ -> newWriter.BaseStream.Position) 
+    |> Write originalFile
     |> ignore
 
     newWriter.Close()
