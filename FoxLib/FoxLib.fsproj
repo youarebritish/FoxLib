@@ -67,6 +67,7 @@
     <Compile Include="MaterialParamBinary\MaterialParamBinary.fs" />
     <Compile Include="PrecomputedSkyParameters\PrecomputedSkyParameters.fs" />
     <Compile Include="FoxRig\FoxRig.fs" />
+    <Compile Include="DataSet\DataSetFile2.fs" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

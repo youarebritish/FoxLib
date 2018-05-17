@@ -1,5 +1,7 @@
 ﻿module FoxLib.Core
-open System
+
+open System.Collections
+open System.Collections.Generic
 
 /// <summary>
 /// A point or vector in 3D space.
@@ -73,6 +75,70 @@ type public Pixel = {
 }
     
 /// <summary>
-/// A hashed string. Used in Lua, langIds, and various binary file formats to encode strings.
+/// A 32-bit hashed string. Used in Lua, langIds, and various binary file formats to encode strings.
 /// </summary>
 type public StrCode32Hash = uint32
+
+/// <summary>
+/// A 64-bit hashed string.
+/// </summary>
+type public StrCodeHash = uint64
+
+type public IContainer = 
+    interface
+        inherit IEnumerable
+    end
+
+type public PropertyInfoType =
+    | Int8 = 0
+    | UInt8 = 1
+    | Int16 = 2
+    | UInt16 = 3
+    | Int32 = 4
+    | UInt32 = 5
+    | Int64 = 6
+    | UInt64 = 7
+    | Float = 8
+    | Double = 9
+    | Bool = 10
+    | String = 11
+    | Path = 12
+    | EntityPtr = 13
+    | Vector3 = 14
+    | Vector4 = 15
+    | Quat = 16
+    | Matrix3 = 17
+    | Matrix4 = 18
+    | Color = 19
+    | FilePtr = 20
+    | EntityHandle = 21
+    | EntityLink = 22
+    | PropertyInfo = 23
+    | WideVector3 = 24
+    
+type public PropertyInfo = {
+    Name : string
+    Type : PropertyInfoType
+    Container : IContainer
+}
+
+type public Entity = {
+    Class : string
+    ClassId : uint32
+    Version : uint16
+    StaticProperties : PropertyInfo[]
+    DynamicProperties : PropertyInfo[]
+}
+
+type public Container<'T> =
+    | StaticArray of 'T[]
+    | DynamicArray of 'T[]
+    | List of 'T[]
+    | StringMap of IDictionary<string, 'T>
+    interface IContainer with
+        member this.GetEnumerator(): IEnumerator = 
+            match this with
+            | StaticArray staticArray -> staticArray.GetEnumerator()
+            | DynamicArray dynamicArray -> dynamicArray.GetEnumerator()
+            | List list -> list.GetEnumerator()
+            | StringMap stringMap -> stringMap.GetEnumerator() :> IEnumerator
