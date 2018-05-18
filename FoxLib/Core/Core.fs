@@ -2,6 +2,16 @@
 
 open System.Collections
 open System.Collections.Generic
+    
+/// <summary>
+/// A 32-bit hashed string. Used in Lua, langIds, and various binary file formats to encode strings.
+/// </summary>
+type public StrCode32Hash = uint32
+
+/// <summary>
+/// A 64-bit hashed string.
+/// </summary>
+type public StrCodeHash = uint64
 
 /// <summary>
 /// A point or vector in 3D space.
@@ -49,6 +59,41 @@ type public Quaternion = {
     W : float32
 }
 
+type public Matrix3 = private { values : float32[] } with
+    member public this.Col0 = this.values.[0..2]
+    member public this.Col1 = this.values.[3..5]
+    member public this.Col2 = this.values.[6..8]
+    /// <summary>
+    /// Create a Matrix3.
+    /// </summary>
+    static member public Create col0row0 col0row1 col0row2 col1row0 col1row1 col1row2 col2row0 col2row1 col2row2 =
+        { values =
+            [|col0row0; col0row1; col0row2;
+            col1row0; col1row1; col1row2;
+            col2row0; col2row1; col2row2|] }
+
+type public Matrix4 = private { values : float32[] } with
+    member public this.Col0 = this.values.[0..3]
+    member public this.Col1 = this.values.[4..7]
+    member public this.Col2 = this.values.[8..11]
+    member public this.Col3 = this.values.[12..15]
+    /// <summary>
+    /// Create a Matrix4.
+    /// </summary>
+    static member public Create col0row0 col0row1 col0row2 col0row3 col1row0 col1row1 col1row2 col1row3 col2row0 col2row1 col2row2 col2row3 col3row0 col3row1 col3row2 col3row3 =
+        { values =
+            [|col0row0; col0row1; col0row2; col0row3;
+            col1row0; col1row1; col1row2; col1row3;
+            col2row0; col2row1; col2row2; col2row3;
+            col3row0; col3row1; col3row2; col3row3;|] }
+
+type public EntityLink = {
+    PackagePath : StrCodeHash
+    ArchivePath : StrCodeHash
+    NameInArchive : StrCodeHash
+    EntityHandle : uint64
+}
+
 /// <summary>
 /// An RGB color.
 /// </summary>
@@ -73,16 +118,6 @@ type public Pixel = {
     Y : int
     Color : ColorRGBA
 }
-    
-/// <summary>
-/// A 32-bit hashed string. Used in Lua, langIds, and various binary file formats to encode strings.
-/// </summary>
-type public StrCode32Hash = uint32
-
-/// <summary>
-/// A 64-bit hashed string.
-/// </summary>
-type public StrCodeHash = uint64
 
 type public IContainer = 
     interface

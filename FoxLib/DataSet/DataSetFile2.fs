@@ -41,6 +41,11 @@ let private readTypedContainer dataType containerType arraySize readInt8 readUIn
 
     let readVector4() = Vector4.Read readSingle
     let readQuat() = Quaternion.Read readSingle
+    let readMatrix3() = Matrix3.Read readSingle
+    let readMatrix4() = Matrix4.Read readSingle
+    let readColor() = ColorRGBA.Read readSingle
+    let readEntityLink() = { PackagePath = readHash(); ArchivePath = readHash(); NameInArchive = readHash(); EntityHandle = readUInt64() }
+    let readWideVector3() = WideVector3.Read readSingle readUInt16
 
     match dataType with
     | PropertyInfoType.Int8 -> (readContainer<int8> containerType arraySize readHash readInt8) :> IContainer
@@ -60,6 +65,13 @@ let private readTypedContainer dataType containerType arraySize readInt8 readUIn
     | PropertyInfoType.Vector3 -> (readContainer<Vector3> containerType arraySize readHash readVector3) :> IContainer
     | PropertyInfoType.Vector4 -> (readContainer<Vector4> containerType arraySize readHash readVector4) :> IContainer
     | PropertyInfoType.Quat -> (readContainer<Quaternion> containerType arraySize readHash readQuat) :> IContainer
+    | PropertyInfoType.Matrix3 -> (readContainer<Matrix3> containerType arraySize readHash readMatrix3) :> IContainer
+    | PropertyInfoType.Matrix4 -> (readContainer<Matrix4> containerType arraySize readHash readMatrix4) :> IContainer
+    | PropertyInfoType.Color -> (readContainer<ColorRGBA> containerType arraySize readHash readColor) :> IContainer
+    | PropertyInfoType.FilePtr -> (readContainer<StrCodeHash> containerType arraySize readHash readHash) :> IContainer
+    | PropertyInfoType.EntityHandle -> (readContainer<uint64> containerType arraySize readHash readUInt64) :> IContainer
+    | PropertyInfoType.EntityLink -> (readContainer<EntityLink> containerType arraySize readHash readEntityLink) :> IContainer
+    | PropertyInfoType.WideVector3 -> (readContainer<WideVector3> containerType arraySize readHash readWideVector3) :> IContainer
 
 let private readProperty readDataType readContainerType readUInt64 readUInt16 skipBytes alignRead =
     let nameHash = readUInt64()
