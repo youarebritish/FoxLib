@@ -152,15 +152,16 @@ type public PropertyInfoType =
     | WideVector3 = 24
     
 type public PropertyInfo = {
-    Name : string
+    Name : StrCodeHash
     Type : PropertyInfoType
     Container : IContainer
 }
 
 type public Entity = {
-    Class : string
+    ClassName : StrCodeHash
     ClassId : uint32
     Version : uint16
+    Address : uint32
     StaticProperties : PropertyInfo[]
     DynamicProperties : PropertyInfo[]
 }

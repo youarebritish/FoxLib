@@ -73,7 +73,7 @@ let private readTypedContainer dataType containerType arraySize readInt8 readUIn
     | PropertyInfoType.EntityLink -> (readContainer<EntityLink> containerType arraySize readHash readEntityLink) :> IContainer
     | PropertyInfoType.WideVector3 -> (readContainer<WideVector3> containerType arraySize readHash readWideVector3) :> IContainer
 
-let private readProperty readDataType readContainerType readUInt64 readUInt16 skipBytes alignRead =
+let private readProperty readDataType readContainerType readContainerFunc readUInt64 readUInt16 skipBytes alignRead =
     let nameHash = readUInt64()
     let dataType = readDataType()
     let containerType = readContainerType()
@@ -81,14 +81,18 @@ let private readProperty readDataType readContainerType readUInt64 readUInt16 sk
 
     skipBytes 160 |> ignore
     
-    // TODO let container = readContainer containerType dataType arraySize
+    let container = readContainerFunc dataType containerType arraySize 
 
     alignRead 16 |> ignore
 
-let private readEntity readUInt16 readUInt32 readUInt64 skipBytes alignRead =
+    { Name = nameHash;
+    Type = dataType;
+    Container = container }
+
+let private readEntity readContainerFunc readPropertyInfoType readContainerType readUInt16 readUInt32 readUInt64 skipBytes alignRead =
     skipBytes 2 |> ignore
     
-    let classId = readUInt16()
+    let classId = readUInt32()
 
     skipBytes 6 |> ignore
 
@@ -103,9 +107,19 @@ let private readEntity readUInt16 readUInt32 readUInt64 skipBytes alignRead =
 
     skipBytes 8 |> ignore
     alignRead 16 |> ignore
+    
+    let staticProperties = [|1us.. staticPropertyCount|]
+                            |> Array.map (fun _ -> readProperty readPropertyInfoType readContainerType readContainerFunc readUInt64 readUInt16 skipBytes alignRead)
 
-    // TODO Read static properties
-    // TODO Read dynamic properties
+    let dynamicProperties = [|1us.. dynamicPropertyCount|]
+                            |> Array.map (fun _ -> readProperty readPropertyInfoType readContainerType readContainerFunc readUInt64 readUInt16 skipBytes alignRead)
+
+    { ClassName = classNameHash;
+    ClassId = classId;
+    Version = version;
+    Address = address;
+    StaticProperties = staticProperties;
+    DynamicProperties = dynamicProperties }
 
 let private readHeader readUInt32 skipBytes =
     skipBytes 8 |> ignore
@@ -195,7 +209,7 @@ let public Read readFunctions =
     let convertedReadFunctions = convertReadFunctions readFunctions
 
     let entityCount = readHeader convertedReadFunctions.ReadUInt32 convertedReadFunctions.SkipBytes
-    let entities = [|1u..entityCount|]
-                    |> Array.map (fun _ -> readEntity)
+    //let entities = [|1u..entityCount|]
+    //                |> Array.map (fun _ -> readEntity)
 
     ()
