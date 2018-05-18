@@ -125,31 +125,31 @@ type public IContainer =
     end
 
 type public PropertyInfoType =
-    | Int8 = 0
-    | UInt8 = 1
-    | Int16 = 2
-    | UInt16 = 3
-    | Int32 = 4
-    | UInt32 = 5
-    | Int64 = 6
-    | UInt64 = 7
-    | Float = 8
-    | Double = 9
-    | Bool = 10
-    | String = 11
-    | Path = 12
-    | EntityPtr = 13
-    | Vector3 = 14
-    | Vector4 = 15
-    | Quat = 16
-    | Matrix3 = 17
-    | Matrix4 = 18
-    | Color = 19
-    | FilePtr = 20
-    | EntityHandle = 21
-    | EntityLink = 22
-    | PropertyInfo = 23
-    | WideVector3 = 24
+    | Int8 = 0uy
+    | UInt8 = 1uy
+    | Int16 = 2uy
+    | UInt16 = 3uy
+    | Int32 = 4uy
+    | UInt32 = 5uy
+    | Int64 = 6uy
+    | UInt64 = 7uy
+    | Float = 8uy
+    | Double = 9uy
+    | Bool = 10uy
+    | String = 11uy
+    | Path = 12uy
+    | EntityPtr = 13uy
+    | Vector3 = 14uy
+    | Vector4 = 15uy
+    | Quat = 16uy
+    | Matrix3 = 17uy
+    | Matrix4 = 18uy
+    | Color = 19uy
+    | FilePtr = 20uy
+    | EntityHandle = 21uy
+    | EntityLink = 22uy
+    | PropertyInfo = 23uy
+    | WideVector3 = 24uy
     
 type public PropertyInfo = {
     Name : StrCodeHash
@@ -159,7 +159,7 @@ type public PropertyInfo = {
 
 type public Entity = {
     ClassName : StrCodeHash
-    ClassId : uint32
+    ClassId : uint16
     Version : uint16
     Address : uint32
     StaticProperties : PropertyInfo[]
@@ -167,10 +167,10 @@ type public Entity = {
 }
 
 type public ContainerType =
-    | StaticArray = 0
-    | DynamicArray = 1
-    | StringMap = 2
-    | List = 3
+    | StaticArray = 0uy
+    | DynamicArray = 1uy
+    | StringMap = 2uy
+    | List = 3uy
 
 type public Container<'T> =
     | StaticArray of 'T[]

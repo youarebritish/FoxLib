@@ -1,25 +1,8 @@
-﻿module DataSetFile2
+﻿module FoxLib.DataSetFile2
 
 open System
 open FoxLib.Core
 open FoxLib
-
-(*
-type private IContainer = interface end
-
-type private Container<'T> =
-    | StaticArray of 'T[]
-    | DynamicArray of 'T[]
-    | List of 'T[]
-    | StringMap of Map<StrCodeHash, 'T>
-    interface IContainer
-    
-type private ContainerType =
-    | StaticArray = 0
-    | DynamicArray = 1
-    | StringMap = 2
-    | List = 3
-    *)
 
 let private readContainer<'T> containerType arraySize readHash (readValue : unit -> 'T) =
     let readArray() = [|1us..arraySize|]
@@ -29,11 +12,13 @@ let private readContainer<'T> containerType arraySize readHash (readValue : unit
                             |> Array.map (fun _ -> readHash(), readValue())
                             |> Map.ofArray
 
-    match containerType with
+    let result = match containerType with
     | ContainerType.StaticArray -> StaticArray (readArray())
     | ContainerType.DynamicArray -> DynamicArray (readArray())
     | ContainerType.StringMap -> StringMap (readStringMap())
     | ContainerType.List -> List (readArray())
+
+    result
 
 let private readTypedContainer dataType containerType arraySize readInt8 readUInt8 readInt16 readUInt16 readInt32 readUInt32 readInt64 readUInt64 readSingle readDouble readBool =
     let readHash = readUInt64
@@ -81,7 +66,13 @@ let private readProperty readDataType readContainerType readContainerFunc readUI
     let containerType = readContainerType()
     let arraySize = readUInt16()
 
-    skipBytes 160 |> ignore
+    //skipBytes 16 |> ignore
+    
+    let offset = readUInt16()
+    let size = readUInt16()
+
+    let unknown2 = readUInt64()
+    let unknown4 = readUInt64()
     
     let container = readContainerFunc dataType containerType arraySize 
 
@@ -94,7 +85,7 @@ let private readProperty readDataType readContainerType readContainerFunc readUI
 let private readEntity readContainerFunc readPropertyInfoType readContainerType readUInt16 readUInt32 readUInt64 skipBytes alignRead =
     skipBytes 2 |> ignore
     
-    let classId = readUInt32()
+    let classId = readUInt16()
 
     skipBytes 6 |> ignore
 
@@ -107,7 +98,7 @@ let private readEntity readContainerFunc readPropertyInfoType readContainerType 
     let staticPropertyCount = readUInt16()
     let dynamicPropertyCount = readUInt16()
 
-    skipBytes 8 |> ignore
+    skipBytes 12 |> ignore
     alignRead 16 |> ignore
     
     let staticProperties = [|1us.. staticPropertyCount|]
@@ -150,8 +141,6 @@ type public ReadFunctions = {
     /// Function to read a float.
     ReadDouble : Func<float>
     ReadBool : Func<bool>
-    /// Function to read chars.
-    ReadBytes : Func<int, byte[]>
     /// Function to skip a number of bytes.
     SkipBytes : Action<int>
     /// Function to align the stream.
@@ -178,7 +167,6 @@ type private ConvertedReadFunctions = {
     /// Function to read a float.
     ReadDouble : unit -> float
     ReadBool : unit -> bool
-    ReadBytes : int -> byte[]
     SkipBytes : int -> unit
     AlignRead : int -> unit
 }
@@ -193,8 +181,8 @@ let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
     if rawReadFunctions.ReadUInt16 |> isNull then nullArg "ReadUInt16"
     if rawReadFunctions.ReadUInt32 |> isNull then nullArg "ReadUInt32"
     if rawReadFunctions.ReadInt32 |> isNull then nullArg "ReadInt32"
-    if rawReadFunctions.ReadBytes |> isNull then nullArg "ReadBytes"
     if rawReadFunctions.SkipBytes |> isNull then nullArg "SkipBytes"
+    // TODO add checks to the rest
 
     { ConvertedReadFunctions.ReadSingle = rawReadFunctions.ReadSingle.Invoke;
     ReadInt8 = rawReadFunctions.ReadInt8.Invoke;
@@ -207,7 +195,6 @@ let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
     ReadUInt64 = rawReadFunctions.ReadUInt64.Invoke;
     ReadDouble = rawReadFunctions.ReadDouble.Invoke;
     ReadBool = rawReadFunctions.ReadBool.Invoke;
-    ReadBytes = rawReadFunctions.ReadBytes.Invoke;
     SkipBytes = rawReadFunctions.SkipBytes.Invoke;
     AlignRead = rawReadFunctions.AlignRead.Invoke; }
 
@@ -229,8 +216,8 @@ let public Read readFunctions =
                                                                         convertedReadFunctions.ReadDouble
                                                                         convertedReadFunctions.ReadBool)
 
-    let readPropertyInfoType() = enum(convertedReadFunctions.ReadInt32())
-    let readContainerType() = enum(convertedReadFunctions.ReadInt32())
+    let readPropertyInfoType() = convertedReadFunctions.ReadUInt8() |> LanguagePrimitives.EnumOfValue
+    let readContainerType() = convertedReadFunctions.ReadUInt8() |> LanguagePrimitives.EnumOfValue
     
     let entities = [|1u..entityCount|]
                     |> Array.map (fun _ -> readEntity readContainerFunc readPropertyInfoType readContainerType convertedReadFunctions.ReadUInt16 convertedReadFunctions.ReadUInt32 convertedReadFunctions.ReadUInt64 convertedReadFunctions.SkipBytes convertedReadFunctions.AlignRead)
