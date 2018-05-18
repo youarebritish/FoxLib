@@ -166,11 +166,17 @@ type public Entity = {
     DynamicProperties : PropertyInfo[]
 }
 
+type public ContainerType =
+    | StaticArray = 0
+    | DynamicArray = 1
+    | StringMap = 2
+    | List = 3
+
 type public Container<'T> =
     | StaticArray of 'T[]
     | DynamicArray of 'T[]
     | List of 'T[]
-    | StringMap of IDictionary<string, 'T>
+    | StringMap of IDictionary<StrCodeHash, 'T>
     interface IContainer with
         member this.GetEnumerator(): IEnumerator = 
             match this with

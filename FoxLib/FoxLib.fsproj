@@ -59,6 +59,8 @@
     <Compile Include="Core\Quaternion.fs" />
     <Compile Include="Core\ColorRGB.fs" />
     <Compile Include="Core\ColorRGBA.fs" />
+    <Compile Include="Core\Matrix3.fs" />
+    <Compile Include="Core\Matrix4.fs" />
     <Compile Include="GimmickLocator\GimmickLocator.fs" />
     <Compile Include="GimmickLocator\GimmickLocatorSet.fs" />
     <Compile Include="RouteSet\TppRouteSet.fs" />

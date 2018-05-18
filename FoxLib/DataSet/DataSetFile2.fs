@@ -4,6 +4,7 @@ open System
 open FoxLib.Core
 open FoxLib
 
+(*
 type private IContainer = interface end
 
 type private Container<'T> =
@@ -18,12 +19,13 @@ type private ContainerType =
     | DynamicArray = 1
     | StringMap = 2
     | List = 3
+    *)
 
 let private readContainer<'T> containerType arraySize readHash (readValue : unit -> 'T) =
-    let readArray() = [|1..arraySize|]
+    let readArray() = [|1us..arraySize|]
                         |> Array.map (fun _ -> readValue())
 
-    let readStringMap() = [|1..arraySize|]
+    let readStringMap() = [|1us..arraySize|]
                             |> Array.map (fun _ -> readHash(), readValue())
                             |> Map.ofArray
 
@@ -152,6 +154,8 @@ type public ReadFunctions = {
     ReadBytes : Func<int, byte[]>
     /// Function to skip a number of bytes.
     SkipBytes : Action<int>
+    /// Function to align the stream.
+    AlignRead : Action<int>
 }
 
 /// <summmary>
@@ -176,6 +180,7 @@ type private ConvertedReadFunctions = {
     ReadBool : unit -> bool
     ReadBytes : int -> byte[]
     SkipBytes : int -> unit
+    AlignRead : int -> unit
 }
 
 /// <summmary>
@@ -203,13 +208,31 @@ let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
     ReadDouble = rawReadFunctions.ReadDouble.Invoke;
     ReadBool = rawReadFunctions.ReadBool.Invoke;
     ReadBytes = rawReadFunctions.ReadBytes.Invoke;
-    SkipBytes = rawReadFunctions.SkipBytes.Invoke; }
+    SkipBytes = rawReadFunctions.SkipBytes.Invoke;
+    AlignRead = rawReadFunctions.AlignRead.Invoke; }
 
 let public Read readFunctions =
     let convertedReadFunctions = convertReadFunctions readFunctions
 
     let entityCount = readHeader convertedReadFunctions.ReadUInt32 convertedReadFunctions.SkipBytes
-    //let entities = [|1u..entityCount|]
-    //                |> Array.map (fun _ -> readEntity)
 
-    ()
+    let readContainerFunc = (fun dataType containerType arraySize -> readTypedContainer dataType containerType arraySize
+                                                                        convertedReadFunctions.ReadInt8
+                                                                        convertedReadFunctions.ReadUInt8
+                                                                        convertedReadFunctions.ReadInt16
+                                                                        convertedReadFunctions.ReadUInt16
+                                                                        convertedReadFunctions.ReadInt32
+                                                                        convertedReadFunctions.ReadUInt32
+                                                                        convertedReadFunctions.ReadInt64
+                                                                        convertedReadFunctions.ReadUInt64
+                                                                        convertedReadFunctions.ReadSingle
+                                                                        convertedReadFunctions.ReadDouble
+                                                                        convertedReadFunctions.ReadBool)
+
+    let readPropertyInfoType() = enum(convertedReadFunctions.ReadInt32())
+    let readContainerType() = enum(convertedReadFunctions.ReadInt32())
+    
+    let entities = [|1u..entityCount|]
+                    |> Array.map (fun _ -> readEntity readContainerFunc readPropertyInfoType readContainerType convertedReadFunctions.ReadUInt16 convertedReadFunctions.ReadUInt32 convertedReadFunctions.ReadUInt64 convertedReadFunctions.SkipBytes convertedReadFunctions.AlignRead)
+    
+    entities
