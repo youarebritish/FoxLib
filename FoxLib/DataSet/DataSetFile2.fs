@@ -3,17 +3,27 @@
 open System
 open FoxLib.Core
 open FoxLib
+open FoxLib.Fox
+open System.Text
+
+let private stringEncoding = Encoding.UTF8
 
 type public StringLiteral = {
-    hash : StrCodeHash
-    literal : string
+    Hash : StrCodeHash
+    Literal : string
+    EncryptedLiteral : Option<byte[]>
 }
+
+let private getEncryptedLiteral literal hash =
+    let literalHash = StrCode literal
+    if literalHash = hash then None
+    else Some(stringEncoding.GetBytes literal)
 
 let private readStringLiteral hash readString readUInt32 =
     let stringLength = readUInt32()
-    let stringLiteral = readString(stringLength)
+    let stringLiteral = readString stringLength
 
-    { StringLiteral.hash = hash; literal = stringLiteral }
+    { StringLiteral.Hash = hash; Literal = stringLiteral; EncryptedLiteral = getEncryptedLiteral stringLiteral hash }
 
 let private readHashStringTableEntry readString readUInt32 readUInt64 =
     let hash = readUInt64()
