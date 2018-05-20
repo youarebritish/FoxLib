@@ -73,6 +73,9 @@
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="CityHash">
+      <HintPath>..\packages\CityHash.Net.Legacy.0.1.2.0\lib\net45\CityHash.dll</HintPath>
+    </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core">
       <Name>FSharp.Core</Name>
