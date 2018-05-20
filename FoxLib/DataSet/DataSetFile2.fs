@@ -4,6 +4,30 @@ open System
 open FoxLib.Core
 open FoxLib
 
+type public StringLiteral = {
+    hash : StrCodeHash
+    literal : string
+}
+
+let private readStringLiteral hash readString readUInt32 =
+    let stringLength = readUInt32()
+    let stringLiteral = readString(stringLength)
+
+    { StringLiteral.hash = hash; literal = stringLiteral }
+
+let private readHashStringTableEntry readString readUInt32 readUInt64 =
+    let hash = readUInt64()
+    match hash with
+    | 0UL -> None
+    | _ -> Some (readStringLiteral hash readString readUInt32)
+
+let private readHashStringTable readString readUInt32 readUInt64 =
+    Seq.initInfinite (fun _ -> readHashStringTableEntry readString readUInt32 readUInt64)
+    |> Seq.takeWhile (fun literal -> match literal with
+                                        | Some _ -> true
+                                        | None -> false)
+    |> Seq.toArray
+
 let private readContainer<'T> containerType arraySize readHash (readValue : unit -> 'T) =
     let readArray() = [|1us..arraySize|]
                         |> Array.map (fun _ -> readValue())
@@ -65,9 +89,7 @@ let private readProperty readDataType readContainerType readContainerFunc readUI
     let dataType = readDataType()
     let containerType = readContainerType()
     let arraySize = readUInt16()
-
-    //skipBytes 16 |> ignore
-    
+        
     let offset = readUInt16()
     let size = readUInt16()
 
@@ -141,6 +163,7 @@ type public ReadFunctions = {
     /// Function to read a float.
     ReadDouble : Func<float>
     ReadBool : Func<bool>
+    ReadString : Func<uint32, string>
     /// Function to skip a number of bytes.
     SkipBytes : Action<int>
     /// Function to align the stream.
@@ -167,6 +190,7 @@ type private ConvertedReadFunctions = {
     /// Function to read a float.
     ReadDouble : unit -> float
     ReadBool : unit -> bool
+    ReadString : uint32 -> string
     SkipBytes : int -> unit
     AlignRead : int -> unit
 }
@@ -195,6 +219,7 @@ let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
     ReadUInt64 = rawReadFunctions.ReadUInt64.Invoke;
     ReadDouble = rawReadFunctions.ReadDouble.Invoke;
     ReadBool = rawReadFunctions.ReadBool.Invoke;
+    ReadString = rawReadFunctions.ReadString.Invoke;
     SkipBytes = rawReadFunctions.SkipBytes.Invoke;
     AlignRead = rawReadFunctions.AlignRead.Invoke; }
 
@@ -222,4 +247,6 @@ let public Read readFunctions =
     let entities = [|1u..entityCount|]
                     |> Array.map (fun _ -> readEntity readContainerFunc readPropertyInfoType readContainerType convertedReadFunctions.ReadUInt16 convertedReadFunctions.ReadUInt32 convertedReadFunctions.ReadUInt64 convertedReadFunctions.SkipBytes convertedReadFunctions.AlignRead)
     
-    entities
+    let hashStringTable = readHashStringTable convertedReadFunctions.ReadString convertedReadFunctions.ReadUInt32 convertedReadFunctions.ReadUInt64
+    
+    entities, hashStringTable
