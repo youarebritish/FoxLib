@@ -41,12 +41,12 @@ let private readStringTable readString readUInt32 readUInt64 =
     |> Seq.map (fun literal -> literal.Value)
     |> Seq.toArray
     
-let private readContainer<'T> containerType arraySize readHash (readValue : unit -> 'T) =
+let private readContainer<'T> containerType arraySize readString (readValue : unit -> 'T) =
     let readArray() = [|1us..arraySize|]
                         |> Array.map (fun _ -> readValue())
 
     let readStringMap() = [|1us..arraySize|]
-                            |> Array.map (fun _ -> readHash(), readValue())
+                            |> Array.map (fun _ -> readString(), readValue())
                             |> Map.ofArray
 
     let result = match containerType with
@@ -57,7 +57,7 @@ let private readContainer<'T> containerType arraySize readHash (readValue : unit
 
     result
 
-let private readTypedContainer dataType containerType arraySize (tryUnhashString : StrCodeHash -> Option<string>) readInt8 readUInt8 readInt16 readUInt16 readInt32 readUInt32 readInt64 readUInt64 readSingle readDouble readBool =
+let private readTypedContainer dataType containerType arraySize (unhashString : StrCodeHash -> string) readInt8 readUInt8 readInt16 readUInt16 readInt32 readUInt32 readInt64 readUInt64 readSingle readDouble readBool =
     let readHash = readUInt64
 
     let readVector3() = let value = { Vector3.X = readSingle(); Y = readSingle(); Z = readSingle(); }
@@ -72,36 +72,35 @@ let private readTypedContainer dataType containerType arraySize (tryUnhashString
     let readEntityLink() = { PackagePath = readHash(); ArchivePath = readHash(); NameInArchive = readHash(); EntityHandle = readUInt64() }
     let readWideVector3() = WideVector3.Read readSingle readUInt16    
     let readString() = let hash = readHash()
-                       let unhashedString = tryUnhashString hash
-                       unhashedString.Value
+                       unhashString hash
 
     match dataType with
-    | PropertyInfoType.Int8 -> (readContainer<int8> containerType arraySize readHash readInt8) :> IContainer
-    | PropertyInfoType.UInt8 -> (readContainer<uint8> containerType arraySize readHash readUInt8) :> IContainer
-    | PropertyInfoType.Int16 -> (readContainer<int16> containerType arraySize readHash readInt16) :> IContainer
-    | PropertyInfoType.UInt16 -> (readContainer<uint16> containerType arraySize readHash readUInt16) :> IContainer
-    | PropertyInfoType.Int32 -> (readContainer<int32> containerType arraySize readHash readInt32) :> IContainer
-    | PropertyInfoType.UInt32 -> (readContainer<uint32> containerType arraySize readHash readUInt32) :> IContainer
-    | PropertyInfoType.Int64 -> (readContainer<int64> containerType arraySize readHash readInt64) :> IContainer
-    | PropertyInfoType.UInt64 -> (readContainer<uint64> containerType arraySize readHash readUInt64) :> IContainer
-    | PropertyInfoType.Float -> (readContainer<float32> containerType arraySize readHash readSingle) :> IContainer
-    | PropertyInfoType.Double -> (readContainer<float> containerType arraySize readHash readDouble) :> IContainer
-    | PropertyInfoType.Bool -> (readContainer<bool> containerType arraySize readHash readBool) :> IContainer
-    | PropertyInfoType.String -> (readContainer<string> containerType arraySize readHash readString) :> IContainer
-    | PropertyInfoType.Path -> (readContainer<string> containerType arraySize readHash readString) :> IContainer
-    | PropertyInfoType.EntityPtr -> (readContainer<uint64> containerType arraySize readHash readUInt64) :> IContainer
-    | PropertyInfoType.Vector3 -> (readContainer<Vector3> containerType arraySize readHash readVector3) :> IContainer
-    | PropertyInfoType.Vector4 -> (readContainer<Vector4> containerType arraySize readHash readVector4) :> IContainer
-    | PropertyInfoType.Quat -> (readContainer<Quaternion> containerType arraySize readHash readQuat) :> IContainer
-    | PropertyInfoType.Matrix3 -> (readContainer<Matrix3> containerType arraySize readHash readMatrix3) :> IContainer
-    | PropertyInfoType.Matrix4 -> (readContainer<Matrix4> containerType arraySize readHash readMatrix4) :> IContainer
-    | PropertyInfoType.Color -> (readContainer<ColorRGBA> containerType arraySize readHash readColor) :> IContainer
-    | PropertyInfoType.FilePtr -> (readContainer<string> containerType arraySize readHash readString) :> IContainer
-    | PropertyInfoType.EntityHandle -> (readContainer<uint64> containerType arraySize readHash readUInt64) :> IContainer
-    | PropertyInfoType.EntityLink -> (readContainer<EntityLink> containerType arraySize readHash readEntityLink) :> IContainer
-    | PropertyInfoType.WideVector3 -> (readContainer<WideVector3> containerType arraySize readHash readWideVector3) :> IContainer
+    | PropertyInfoType.Int8 -> (readContainer<int8> containerType arraySize readString readInt8) :> IContainer
+    | PropertyInfoType.UInt8 -> (readContainer<uint8> containerType arraySize readString readUInt8) :> IContainer
+    | PropertyInfoType.Int16 -> (readContainer<int16> containerType arraySize readString readInt16) :> IContainer
+    | PropertyInfoType.UInt16 -> (readContainer<uint16> containerType arraySize readString readUInt16) :> IContainer
+    | PropertyInfoType.Int32 -> (readContainer<int32> containerType arraySize readString readInt32) :> IContainer
+    | PropertyInfoType.UInt32 -> (readContainer<uint32> containerType arraySize readString readUInt32) :> IContainer
+    | PropertyInfoType.Int64 -> (readContainer<int64> containerType arraySize readString readInt64) :> IContainer
+    | PropertyInfoType.UInt64 -> (readContainer<uint64> containerType arraySize readString readUInt64) :> IContainer
+    | PropertyInfoType.Float -> (readContainer<float32> containerType arraySize readString readSingle) :> IContainer
+    | PropertyInfoType.Double -> (readContainer<float> containerType arraySize readString readDouble) :> IContainer
+    | PropertyInfoType.Bool -> (readContainer<bool> containerType arraySize readString readBool) :> IContainer
+    | PropertyInfoType.String -> (readContainer<string> containerType arraySize readString readString) :> IContainer
+    | PropertyInfoType.Path -> (readContainer<string> containerType arraySize readString readString) :> IContainer
+    | PropertyInfoType.EntityPtr -> (readContainer<uint64> containerType arraySize readString readUInt64) :> IContainer
+    | PropertyInfoType.Vector3 -> (readContainer<Vector3> containerType arraySize readString readVector3) :> IContainer
+    | PropertyInfoType.Vector4 -> (readContainer<Vector4> containerType arraySize readString readVector4) :> IContainer
+    | PropertyInfoType.Quat -> (readContainer<Quaternion> containerType arraySize readString readQuat) :> IContainer
+    | PropertyInfoType.Matrix3 -> (readContainer<Matrix3> containerType arraySize readString readMatrix3) :> IContainer
+    | PropertyInfoType.Matrix4 -> (readContainer<Matrix4> containerType arraySize readString readMatrix4) :> IContainer
+    | PropertyInfoType.Color -> (readContainer<ColorRGBA> containerType arraySize readString readColor) :> IContainer
+    | PropertyInfoType.FilePtr -> (readContainer<string> containerType arraySize readString readString) :> IContainer
+    | PropertyInfoType.EntityHandle -> (readContainer<uint64> containerType arraySize readString readUInt64) :> IContainer
+    | PropertyInfoType.EntityLink -> (readContainer<EntityLink> containerType arraySize readString readEntityLink) :> IContainer
+    | PropertyInfoType.WideVector3 -> (readContainer<WideVector3> containerType arraySize readString readWideVector3) :> IContainer
 
-let private readProperty readDataType readContainerType readContainerFunc readUInt64 readUInt16 skipBytes alignRead =
+let private readProperty readDataType readContainerType (tryUnhashString : StrCodeHash -> string) readContainerFunc readUInt64 readUInt16 skipBytes alignRead =
     let nameHash = readUInt64()
     let dataType = readDataType()
     let containerType = readContainerType()
@@ -117,11 +116,11 @@ let private readProperty readDataType readContainerType readContainerFunc readUI
 
     alignRead 16 |> ignore
 
-    { Name = nameHash;
+    { Name = tryUnhashString nameHash;
     Type = dataType;
     Container = container }
 
-let private readEntity readContainerFunc readPropertyInfoType readContainerType readUInt16 readUInt32 readUInt64 skipBytes alignRead =
+let private readEntity readContainerFunc readPropertyInfoType readContainerType (unhashString : StrCodeHash -> string) readUInt16 readUInt32 readUInt64 skipBytes alignRead =
     skipBytes 2 |> ignore
     
     let classId = readUInt16()
@@ -141,12 +140,12 @@ let private readEntity readContainerFunc readPropertyInfoType readContainerType 
     alignRead 16 |> ignore
     
     let staticProperties = [|1us.. staticPropertyCount|]
-                            |> Array.map (fun _ -> readProperty readPropertyInfoType readContainerType readContainerFunc readUInt64 readUInt16 skipBytes alignRead)
+                            |> Array.map (fun _ -> readProperty readPropertyInfoType readContainerType unhashString readContainerFunc readUInt64 readUInt16 skipBytes alignRead)
 
     let dynamicProperties = [|1us.. dynamicPropertyCount|]
-                            |> Array.map (fun _ -> readProperty readPropertyInfoType readContainerType readContainerFunc readUInt64 readUInt16 skipBytes alignRead)
+                            |> Array.map (fun _ -> readProperty readPropertyInfoType readContainerType unhashString readContainerFunc readUInt64 readUInt16 skipBytes alignRead)
 
-    { ClassName = classNameHash;
+    { ClassName = unhashString classNameHash;
     ClassId = classId;
     Version = version;
     Address = address;
@@ -267,10 +266,10 @@ let public Read readFunctions =
     convertedReadFunctions.SetStreamPosition entityOffset
 
     let stringLookupTable = makeStringLookupTable hashStringLiterals
-    let tryUnhashString hash = tryGetStringFromHash hash stringLookupTable
+    let unhashString hash = (tryGetStringFromHash hash stringLookupTable).Value
 
     let readContainerFunc = (fun dataType containerType arraySize -> readTypedContainer dataType containerType arraySize
-                                                                        tryUnhashString
+                                                                        unhashString
                                                                         convertedReadFunctions.ReadInt8
                                                                         convertedReadFunctions.ReadUInt8
                                                                         convertedReadFunctions.ReadInt16
@@ -284,7 +283,7 @@ let public Read readFunctions =
                                                                         convertedReadFunctions.ReadBool)
 
     let entities = [|1u..entityCount|]
-                    |> Array.map (fun _ -> readEntity readContainerFunc readPropertyInfoType readContainerType convertedReadFunctions.ReadUInt16 convertedReadFunctions.ReadUInt32 convertedReadFunctions.ReadUInt64 convertedReadFunctions.SkipBytes convertedReadFunctions.AlignRead)
+                    |> Array.map (fun _ -> readEntity readContainerFunc readPropertyInfoType readContainerType unhashString convertedReadFunctions.ReadUInt16 convertedReadFunctions.ReadUInt32 convertedReadFunctions.ReadUInt64 convertedReadFunctions.SkipBytes convertedReadFunctions.AlignRead)
     
     
     entities, hashStringLiterals

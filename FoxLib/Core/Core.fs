@@ -152,13 +152,13 @@ type public PropertyInfoType =
     | WideVector3 = 24uy
     
 type public PropertyInfo = {
-    Name : StrCodeHash
+    Name : string
     Type : PropertyInfoType
     Container : IContainer
 }
 
 type public Entity = {
-    ClassName : StrCodeHash
+    ClassName : string
     ClassId : uint16
     Version : uint16
     Address : uint32
@@ -176,7 +176,7 @@ type public Container<'T> =
     | StaticArray of 'T[]
     | DynamicArray of 'T[]
     | List of 'T[]
-    | StringMap of IDictionary<StrCodeHash, 'T>
+    | StringMap of IDictionary<string, 'T>
     interface IContainer with
         member this.GetEnumerator(): IEnumerator = 
             match this with
