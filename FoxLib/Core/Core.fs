@@ -88,9 +88,9 @@ type public Matrix4 = private { values : float32[] } with
             col3row0; col3row1; col3row2; col3row3;|] }
 
 type public EntityLink = {
-    PackagePath : StrCodeHash
-    ArchivePath : StrCodeHash
-    NameInArchive : StrCodeHash
+    PackagePath : string
+    ArchivePath : string
+    NameInArchive : string
     EntityHandle : uint64
 }
 
