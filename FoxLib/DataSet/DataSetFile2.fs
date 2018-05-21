@@ -3,11 +3,8 @@
 open System
 open FoxLib.Core
 open FoxLib
-open System.Text
 
-let private stringEncoding = Encoding.UTF8
-
-type public StringLiteral = {
+type private StringLiteral = {
     Hash : StrCodeHash
     Literal : string
 }
@@ -286,4 +283,4 @@ let public Read readFunctions =
                     |> Array.map (fun _ -> readEntity readContainerFunc readPropertyInfoType readContainerType unhashString convertedReadFunctions.ReadUInt16 convertedReadFunctions.ReadUInt32 convertedReadFunctions.ReadUInt64 convertedReadFunctions.SkipBytes convertedReadFunctions.AlignRead)
     
     
-    entities, hashStringLiterals
+    entities
