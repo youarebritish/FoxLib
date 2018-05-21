@@ -29,6 +29,8 @@ let private createReadFunctions (reader : BinaryReader) =
     ReadDouble = new Func<float>(reader.ReadDouble);
     ReadBool = new Func<bool>(reader.ReadBoolean);
     ReadString = new Func<uint32, string>(fun length -> readString reader length);
+    GetStreamPosition = new Func<int64>(fun() -> reader.BaseStream.Position);
+    SetStreamPosition = new Action<int64>(fun newPosition -> reader.BaseStream.Position <- newPosition);
     SkipBytes = new Action<int>(fun numBytes -> reader.ReadBytes numBytes |> ignore);
     AlignRead = new Action<int>(fun alignment -> alignRead reader.BaseStream (int64 alignment)); }
 
