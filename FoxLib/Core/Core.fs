@@ -159,9 +159,9 @@ type public PropertyInfo = {
 
 type public Entity = {
     ClassName : string
+    Address : uint32
     ClassId : uint16
     Version : uint16
-    Address : uint32
     StaticProperties : PropertyInfo[]
     DynamicProperties : PropertyInfo[]
 }

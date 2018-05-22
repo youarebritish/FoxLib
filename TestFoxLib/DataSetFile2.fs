@@ -38,7 +38,7 @@ let private createReadFunctions (reader : BinaryReader) =
 [<Category("DataSetFile2")>]
 let ``vanilla DataSetFile2 should repack with original contents`` () =
     let baseDirectory = __SOURCE_DIRECTORY__
-    let inputFilePath = "mtbs_ly003_cl00_item.fox2"
+    let inputFilePath = "gntn_common_gimmick.fox2"
     let inputFullPath = Path.Combine(baseDirectory, inputFilePath)
     use inputStream = new FileStream(inputFullPath, FileMode.Open)
     use reader = new BinaryReader(inputStream)
@@ -46,5 +46,8 @@ let ``vanilla DataSetFile2 should repack with original contents`` () =
     let readFunctions = createReadFunctions reader
 
     let dataSet = DataSetFile2.Read readFunctions
+
+    reader.Close();
+    inputStream.Close();
     
     Assert.IsTrue true
