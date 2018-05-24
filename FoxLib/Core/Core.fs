@@ -119,7 +119,9 @@ type public Pixel = {
     Color : ColorRGBA
 }
 
-type public IContainer = interface inherit IEnumerable end
+type public IContainer =
+    inherit IEnumerable
+    abstract member ArraySize : uint16 with get
 
 type public PropertyInfoType =
     | Int8 = 0uy
@@ -146,11 +148,18 @@ type public PropertyInfoType =
     | EntityHandle = 21uy
     | EntityLink = 22uy
     | PropertyInfo = 23uy
-    | WideVector3 = 24uy
-    
+    | WideVector3 = 24uy    
+
+type public ContainerType =
+    | StaticArray = 0uy
+    | DynamicArray = 1uy
+    | StringMap = 2uy
+    | List = 3uy
+
 type public PropertyInfo = {
     Name : string
     Type : PropertyInfoType
+    ContainerType : ContainerType
     Container : IContainer
 }
 
@@ -164,12 +173,6 @@ type public Entity = {
     DynamicProperties : PropertyInfo[]
 }
 
-type public ContainerType =
-    | StaticArray = 0uy
-    | DynamicArray = 1uy
-    | StringMap = 2uy
-    | List = 3uy
-
 type public Container<'T> =
     | StaticArray of 'T[]
     | DynamicArray of 'T[]
@@ -182,3 +185,9 @@ type public Container<'T> =
             | DynamicArray dynamicArray -> dynamicArray.GetEnumerator()
             | List list -> list.GetEnumerator()
             | StringMap stringMap -> stringMap.GetEnumerator() :> IEnumerator
+        member this.ArraySize with get() =
+            match this with
+            | StaticArray staticArray -> uint16 staticArray.Length
+            | DynamicArray dynamicArray -> uint16 dynamicArray.Length
+            | List list -> uint16 list.Length
+            | StringMap stringMap -> uint16 stringMap.Count

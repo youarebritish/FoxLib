@@ -261,3 +261,11 @@ __pycache__/
 *.pyc
 /TestFoxLib/test repacked.frt
 TestFoxLib/test.fox2
+TestFoxLib/resident_common_settings.fox2
+TestFoxLib/ombs_common_env.fox2
+TestFoxLib/mtbs_ly003_cl00_item.fox2
+TestFoxLib/mtbs_ly001_cl02_item.fox2
+TestFoxLib/mafr_138_121_path.fox2
+TestFoxLib/gntn_common_gimmick.fox2
+TestFoxLib/afgh_enemyBase_asset.fox2
+TestFoxLib/afgh_citadel_0.tcvp

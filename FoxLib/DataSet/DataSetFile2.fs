@@ -196,6 +196,7 @@ let private readProperty readDataType readContainerType (tryUnhashString : StrCo
 
     { Name = tryUnhashString nameHash;
     Type = dataType;
+    ContainerType = containerType;
     Container = container }
 
 /// <summary>
@@ -434,6 +435,37 @@ let public Read readFunctions =
     |> Array.map (fun _ -> readEntity readContainerFunc readPropertyInfoType readContainerType unhashString convertedReadFunctions.ReadUInt16 convertedReadFunctions.ReadUInt32 convertedReadFunctions.ReadUInt64 convertedReadFunctions.SkipBytes convertedReadFunctions.AlignRead)
     |> Array.toSeq
 
+let private writeProperty property getStreamPosition setStreamPosition writeUInt8 writeUInt16 writeHash writeZeroes alignWrite =
+    let headerSize = 32u
+
+    // Skip the header for now; we'll come back to it.
+    let headerPosition = getStreamPosition()
+    setStreamPosition <| headerPosition + headerSize
+
+    // TODO write container
+    // Retrieve embedded strings and arraySize
+    // ...
+
+    alignWrite 16 0x00
+
+    let endPosition = getStreamPosition()
+    let size = endPosition - headerPosition
+
+    // Now go back and write the header.
+    setStreamPosition headerPosition
+    
+    writeHash <| StrCode property.Name
+    writeUInt8 <| uint8 property.Type
+    writeUInt8 <| uint8 property.ContainerType
+    writeUInt16 <| property.Container.ArraySize
+    writeUInt16 <| uint16 size
+    writeZeroes 16
+
+    setStreamPosition endPosition
+
+    // TODO Return embedded strings (including StringMap keys)
+    ()
+
 type private EntityHeaderWriteData = {
     HeaderSize : uint16
     Address : uint32
@@ -467,7 +499,7 @@ let private writeEntityHeader entityHeaderData writeUInt16 writeUInt32 writeHash
     ()
 
 // Write an entity and return all strings found within it.
-let private writeEntity entity getStreamPosition setStreamPosition =
+let private writeEntity (entity : Entity) getStreamPosition setStreamPosition writeEntityHeader =
     let headerSize = 64us
     
     // Skip the header for now. Write the contents and use them to derive the header data to write later.
@@ -488,10 +520,23 @@ let private writeEntity entity getStreamPosition setStreamPosition =
     // Now write the header.
     setStreamPosition headerPosition
 
-    // TODO Write header
-    // ...
+    let headerData = {
+        HeaderSize = headerSize;
+        Address = entity.Address;
+        Version = entity.Version;
+        ClassName = entity.ClassName;
+        ClassId = entity.ClassId;
+        EntityId = entity.Id;
+        StaticPropertiesCount = uint16 entity.StaticProperties.Length;
+        DynamicPropertiesCount = uint16 entity.DynamicProperties.Length;
+        StaticDataSize = uint32 staticDataSize;
+        DataSize = uint32 dataSize
+    }
 
-    ()
+    writeEntityHeader headerData
+
+    // TODO: Return class name and all strings embedded in properties.
+    setStreamPosition endPosition
 
 /// <summmary>
 /// Input functions to the Write function.
