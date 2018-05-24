@@ -119,10 +119,7 @@ type public Pixel = {
     Color : ColorRGBA
 }
 
-type public IContainer = 
-    interface
-        inherit IEnumerable
-    end
+type public IContainer = interface inherit IEnumerable end
 
 type public PropertyInfoType =
     | Int8 = 0uy
@@ -160,6 +157,7 @@ type public PropertyInfo = {
 type public Entity = {
     ClassName : string
     Address : uint32
+    Id : uint32
     ClassId : uint16
     Version : uint16
     StaticProperties : PropertyInfo[]
@@ -178,7 +176,7 @@ type public Container<'T> =
     | List of 'T[]
     | StringMap of IDictionary<string, 'T>
     interface IContainer with
-        member this.GetEnumerator(): IEnumerator = 
+        member this.GetEnumerator() = 
             match this with
             | StaticArray staticArray -> staticArray.GetEnumerator()
             | DynamicArray dynamicArray -> dynamicArray.GetEnumerator()

@@ -1,7 +1,5 @@
 ﻿module FoxLib.Fox
 
-open System.Text
-
 /// <summary>
 /// First of two seeds for the CityHash algorithm.
 /// </summary>

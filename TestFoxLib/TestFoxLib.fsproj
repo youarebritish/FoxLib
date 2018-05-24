@@ -63,6 +63,7 @@
     <Compile Include="TppRailUniqueIdFile.fs" />
     <Compile Include="MaterialParamBinary.fs" />
     <Compile Include="DataSetFile2.fs" />
+    <Compile Include="CoverPointFile.fs" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

@@ -3,6 +3,7 @@
 open System
 open FoxLib.Core
 open FoxLib
+open FoxLib.Fox
 
 /// <summary>
 /// A StrCode hash and its corresponding string.
@@ -218,7 +219,11 @@ let private readEntity readContainerFunc readPropertyInfoType readContainerType 
 
     let address = readUInt32()
 
-    skipBytes 12
+    skipBytes 4
+
+    let id = readUInt32()
+
+    skipBytes 4
 
     let version = readUInt16()
     let classNameHash = readUInt64()
@@ -236,6 +241,7 @@ let private readEntity readContainerFunc readPropertyInfoType readContainerType 
 
     { ClassName = unhashString classNameHash;
     Address = address;
+    Id = id;
     ClassId = classId;
     Version = version;
     StaticProperties = staticProperties;
@@ -391,7 +397,7 @@ let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
 let public Read readFunctions =
     let convertedReadFunctions = convertReadFunctions readFunctions
 
-    let headerData = readHeader convertedReadFunctions.ReadUInt32 convertedReadFunctions.SkipBytes    
+    let headerData = readHeader convertedReadFunctions.ReadUInt32 convertedReadFunctions.SkipBytes
 
     let readPropertyInfoType() = convertedReadFunctions.ReadUInt8() |> LanguagePrimitives.EnumOfValue
     let readContainerType() = convertedReadFunctions.ReadUInt8() |> LanguagePrimitives.EnumOfValue
@@ -427,3 +433,163 @@ let public Read readFunctions =
     [|1u..headerData.EntityCount|]
     |> Array.map (fun _ -> readEntity readContainerFunc readPropertyInfoType readContainerType unhashString convertedReadFunctions.ReadUInt16 convertedReadFunctions.ReadUInt32 convertedReadFunctions.ReadUInt64 convertedReadFunctions.SkipBytes convertedReadFunctions.AlignRead)
     |> Array.toSeq
+
+type private EntityHeaderWriteData = {
+    HeaderSize : uint16
+    Address : uint32
+    Version : uint16
+    ClassName : string
+    ClassId : uint16
+    EntityId : uint32
+    StaticPropertiesCount : uint16
+    DynamicPropertiesCount : uint16
+    StaticDataSize : uint32
+    DataSize : uint32
+}
+
+let private writeEntityHeader entityHeaderData writeUInt16 writeUInt32 writeHash writeZeros alignWrite =
+    writeUInt16 entityHeaderData.HeaderSize
+    writeUInt16 entityHeaderData.ClassId
+    writeZeros 2
+    writeUInt32 0x746e65u
+    writeUInt32 entityHeaderData.Address
+    writeZeros 4
+    writeUInt32 entityHeaderData.EntityId
+    writeZeros 4
+    writeUInt16 entityHeaderData.Version
+    writeHash <| StrCode entityHeaderData.ClassName
+    writeUInt16 entityHeaderData.StaticPropertiesCount
+    writeUInt16 entityHeaderData.DynamicPropertiesCount
+    writeUInt16 entityHeaderData.HeaderSize
+    writeUInt32 entityHeaderData.StaticDataSize
+    writeUInt32 entityHeaderData.DataSize
+    alignWrite 16 0x00
+    ()
+
+// Write an entity and return all strings found within it.
+let private writeEntity entity getStreamPosition setStreamPosition =
+    let headerSize = 64us
+    
+    // Skip the header for now. Write the contents and use them to derive the header data to write later.
+    let headerPosition = getStreamPosition()
+    setStreamPosition (headerPosition + headerSize)
+
+    // TODO Write static properties
+    // ...
+
+    let staticDataSize = getStreamPosition() - headerPosition
+
+    // TODO Write dynamic properties
+    // ...
+
+    let endPosition = getStreamPosition()
+    let dataSize = endPosition - headerPosition
+
+    // Now write the header.
+    setStreamPosition headerPosition
+
+    // TODO Write header
+    // ...
+
+    ()
+
+/// <summmary>
+/// Input functions to the Write function.
+/// </summmary>
+type public WriteFunctions = {
+    /// Function to write a float32.
+    WriteSingle : Action<float32>
+    /// Function to write a uint16.
+    WriteUInt16 : Action<uint16>
+    /// Function to write a uint32.
+    WriteUInt32 : Action<uint32>
+    /// Function to write a int32.
+    WriteInt32 : Action<int32>
+    /// Function to write a int64.
+    WriteUInt64 : Action<uint64>
+    /// Function to write a number of filler bytes.
+    WriteEmptyBytes : Action<int>
+    /// Function to retrieve the current stream position.
+    GetStreamPosition : Func<int64>
+    /// Function to set the current stream position.
+    SetStreamPosition : Action<int64>
+}
+
+/// <summmary>
+/// Write parameters converted to F# functions.
+/// </summmary>
+type private ConvertedWriteFunctions = {
+    WriteSingle : float32 -> unit
+    WriteUInt16 : uint16 -> unit
+    WriteUInt32 : uint32 -> unit
+    WriteInt32 : int32 -> unit
+    WriteUInt64 : uint64 -> unit
+    WriteEmptyBytes : int32 -> unit
+    /// Function to retrieve the current stream position.
+    GetStreamPosition : unit -> int64
+    /// Function to set the current stream position.
+    SetStreamPosition : int64 -> unit
+}
+
+/// <summmary>
+/// Converts the Write function's .NET Funcs into F# functions.
+/// </summmary>
+/// <param name="rawWriteFunctions">Input functions supplied to the Write function.</param>
+/// <returns>The converted functions.</returns>
+let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
+    if rawWriteFunctions.WriteSingle |> isNull then nullArg "WriteSingle"
+    if rawWriteFunctions.WriteUInt16 |> isNull then nullArg "WriteUInt16"
+    if rawWriteFunctions.WriteUInt32 |> isNull then nullArg "WriteUInt32"
+    if rawWriteFunctions.WriteInt32 |> isNull then nullArg "WriteInt32"
+    if rawWriteFunctions.WriteUInt64 |> isNull then nullArg "WriteUInt64"
+    if rawWriteFunctions.WriteEmptyBytes |> isNull then nullArg "WriteEmptyBytes"
+    if rawWriteFunctions.GetStreamPosition |> isNull then nullArg "GetStreamPosition"
+    if rawWriteFunctions.SetStreamPosition |> isNull then nullArg "SetStreamPosition"
+
+    { ConvertedWriteFunctions.WriteSingle = rawWriteFunctions.WriteSingle.Invoke;
+    WriteUInt16 = rawWriteFunctions.WriteUInt16.Invoke;
+    WriteUInt32 = rawWriteFunctions.WriteUInt32.Invoke;
+    WriteInt32 = rawWriteFunctions.WriteInt32.Invoke;
+    WriteUInt64 = rawWriteFunctions.WriteUInt64.Invoke;
+    WriteEmptyBytes = rawWriteFunctions.WriteEmptyBytes.Invoke;
+    GetStreamPosition = rawWriteFunctions.GetStreamPosition.Invoke;
+    SetStreamPosition = rawWriteFunctions.SetStreamPosition.Invoke }
+
+let public Write entities (writeFunctions : WriteFunctions) =
+    let headerSize = 32L
+    let headerPosition = 0
+
+    let convertedWriteFunctions = convertWriteFunctions writeFunctions
+
+    // Skip the header for now. Write the entities first.
+    convertedWriteFunctions.GetStreamPosition() + headerSize
+    |> convertedWriteFunctions.SetStreamPosition
+    
+    let stringLiterals = entities
+                         |> Seq.map (fun entity -> writeEntity entity)
+
+    let offsetHashMap = convertedWriteFunctions.GetStreamPosition() |> int32
+
+    // TODO
+    // Write string lookup table
+
+    convertedWriteFunctions.WriteUInt64 0UL
+
+    (*
+    output.AlignWrite(16, 0x00);
+    writer.Write(new byte[] {0x00, 0x00, 0x65, 0x6E, 0x64});
+    output.AlignWrite(16, 0x00);
+
+    long endPosition = output.Position;
+    output.Position = headerPosition;
+    int entityCount = Entities.Count();
+    writer.Write(MagicNumber1);
+    writer.Write(MagicNumber2);
+    writer.Write(entityCount);
+    writer.Write(offsetHashMap);
+    writer.Write(HeaderSize);
+    writer.WriteZeros(12);
+    output.Position = endPosition;
+    *)
+
+    ()
