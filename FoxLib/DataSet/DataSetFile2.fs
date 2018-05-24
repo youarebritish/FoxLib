@@ -4,6 +4,7 @@ open System
 open FoxLib.Core
 open FoxLib
 open FoxLib.Fox
+open System.Collections.Generic
 
 /// <summary>
 /// A StrCode hash and its corresponding string.
@@ -434,6 +435,52 @@ let public Read readFunctions =
     [|1u..headerData.EntityCount|]
     |> Array.map (fun _ -> readEntity readContainerFunc readPropertyInfoType readContainerType unhashString convertedReadFunctions.ReadUInt16 convertedReadFunctions.ReadUInt32 convertedReadFunctions.ReadUInt64 convertedReadFunctions.SkipBytes convertedReadFunctions.AlignRead)
     |> Array.toSeq
+    
+let private writeContainer container dataType containerType =    
+    // Note: These functions should be returning embedded strings
+    let writeValueFunction = match dataType with
+    | PropertyInfoType.Int8 -> writeInt8
+    | PropertyInfoType.UInt8 -> writeUInt8
+    | PropertyInfoType.Int16 -> writeInt16
+    | PropertyInfoType.UInt16 -> writeUInt16
+    | PropertyInfoType.Int32 -> writeInt32
+    | PropertyInfoType.UInt32 -> writeUInt32
+    | PropertyInfoType.Int64 -> writeInt64
+    | PropertyInfoType.UInt64 -> writeUInt64
+    | PropertyInfoType.Float -> writeSingle
+    | PropertyInfoType.Double -> writeDouble
+    | PropertyInfoType.Bool -> writeBool
+    | PropertyInfoType.String -> writeString
+    | PropertyInfoType.Path -> writeString
+    | PropertyInfoType.EntityPtr -> writeEntityPtr
+    | PropertyInfoType.Vector3 -> writeVector3
+    | PropertyInfoType.Vector4 -> writeVector4
+    | PropertyInfoType.Quat -> writeQuat
+    | PropertyInfoType.Matrix3 -> writeMatrix3
+    | PropertyInfoType.Matrix4 -> writeMatrix4
+    | PropertyInfoType.Color -> writeColor
+    | PropertyInfoType.FilePtr -> writeString
+    | PropertyInfoType.EntityHandle -> writeUInt64
+    | PropertyInfoType.EntityLink -> writeEntityLink
+    | PropertyInfoType.WideVector3 -> writeWideVector3
+    | _ -> invalidOp "Unrecogfnized PropertyInfo type."
+
+    let writeArray array =
+        array
+        |> Array.map (fun value -> writeValueFunction value)
+        |> Seq.concat
+
+    let writeStringMap (stringMap : IDictionary<string, 'b>) =
+        stringMap
+        |> Seq.map (fun entry -> writeValueFunction entry.Value
+                                 |> Seq.append (Seq.singleton entry.Key) )
+        |> Seq.concat
+        
+    match containerType with
+    | StaticArray staticArray -> writeArray staticArray
+    | DynamicArray dynamicArray -> writeArray dynamicArray
+    | List list -> writeArray list
+    | StringMap stringMap -> writeStringMap stringMap    
 
 let private writeProperty property getStreamPosition setStreamPosition writeUInt8 writeUInt16 writeHash writeZeroes alignWrite =
     let headerSize = 32u
