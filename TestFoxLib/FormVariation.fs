@@ -28,7 +28,7 @@ let private createWriteFunctions (writer : BinaryWriter) =
     WriteBytes = new Action<byte[]>(writer.Write);
     WriteChars = new Action<char[]>(writer.Write);
     WriteEmptyBytes = new Action<int>(fun numBytes -> Array.zeroCreate<byte> numBytes |> writer.Write);
-    GetWriterPosition = new Func<int64>(fun _ -> newWriter.BaseStream.Position) }
+    GetWriterPosition = new Func<int64>(fun _ -> writer.BaseStream.Position) }
 
 let private createReadFunctions (reader : BinaryReader) =
     let readBytes = fun num -> reader.ReadBytes num

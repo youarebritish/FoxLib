@@ -386,16 +386,11 @@ let public Read (readFunctions : ReadFunctions) =
 let private nullValue = 0xFFFFus
 
 /// <summary>
-/// A list of external file hashes.
-/// </summary>
-let mutable (fileList : StrCode64Hash list) = List.empty
-
-/// <summary>
 /// Adds a given hash to the fileList and returns the index of said hash.
 /// </summary>
 /// <param name="hash">The hash to add to the fileList.</param>
 /// <returns>The index of the hash in the file list.</returns>
-let private getFileIndex hash =
+let private getFileIndexFromList (fileList : StrCode64Hash list byref) hash =
     let index = fileList.Length |> uint16
 
     fileList <- hash :: fileList
@@ -407,7 +402,7 @@ let private getFileIndex hash =
 /// </summary>
 /// <param name="textureSwaps">The TextureSwap array to convert.</param>
 /// <returns>The converted MaterialInstance array.</returns>
-let private makeMaterialInstances textureSwaps =
+let private makeMaterialInstances textureSwaps getFileIndex =
     { MaterialInstanceHash = textureSwaps |> Array.map (fun textureSwap -> textureSwap.MaterialInstanceHash);
     TextureTypeHash = textureSwaps |> Array.map (fun textureSwap -> textureSwap.TextureTypeHash);
     ExternalFileListIndex = textureSwaps |> Array.map (fun textureSwap ->  getFileIndex textureSwap.TextureFileHash)
@@ -418,7 +413,7 @@ let private makeMaterialInstances textureSwaps =
 /// </summary>
 /// <param name="boneAttachments">The BoneAttachment array to convert.</param>
 /// <returns>The converted BoneConnection array.</returns>
-let private makeBoneConnections (boneAttachments : BoneAttachment[]) =
+let private makeBoneConnections (boneAttachments : BoneAttachment[]) getFileIndex =
     boneAttachments
     |> Array.map (fun boneAttachment -> let frdvValue = match boneAttachment.FrdvFileHash.HasValue with
                                                         | true -> getFileIndex boneAttachment.FrdvFileHash.Value
@@ -440,7 +435,7 @@ let private makeBoneConnections (boneAttachments : BoneAttachment[]) =
 /// </summary>
 /// <param name="boneAttachments">The CNPAttachment array to convert.</param>
 /// <returns>The converted CNPConnection array.</returns>
-let private makeCNPConnections CNPAttachments = 
+let private makeCNPConnections CNPAttachments getFileIndex = 
     CNPAttachments
     |> Array.map (fun CNPAttachment -> let frdvValue = match CNPAttachment.FrdvFileHash.HasValue with
                                                         | true -> getFileIndex CNPAttachment.FrdvFileHash.Value
@@ -470,7 +465,7 @@ let private getPaddingNum fileSize =
 /// Creates a Header from a FormVariaton.
 /// </summary>
 /// <param name="formVariation">The FormVariation to convert.</param>
-let private calculateHeader formVariation =
+let private calculateHeader formVariation fileListSize =
     let hiddenMeshGroupsNum = formVariation.HiddenMeshGroups.Length |> byte
     
     let shownMeshGroupsNum = formVariation.ShownMeshGroups.Length |> byte
@@ -502,7 +497,7 @@ let private calculateHeader formVariation =
     let section3Size = section3EntrySize * 0us
 
     let fileHashListEntrySize = 8us
-    let fileHashListSize = fileHashListEntrySize * (fileList.Length |> uint16)
+    let fileHashListSize = fileHashListEntrySize * (fileListSize|> uint16)
 
     let externalFileSectionOffset = headerSize + hiddenMeshGroupsSize + shownMeshGroupsSize + materialInstanceSize + boneConnectionsSize + CNPConnectionsSize //A temporary variable used for the alignment of the stream in the external file list section (section 4).
 
@@ -517,7 +512,7 @@ let private calculateHeader formVariation =
     { Section2Offset = section2Offset;
     ExternalFileSectionOffset = section4Offset;
     Section2Entries = 0us;
-    ExternalFileSectionEntries = fileList.Length |> uint16;
+    ExternalFileSectionEntries = fileListSize |> uint16;
     Section3Offset = section3Offset;
     Section3Entries = 0us;
     NumTextures = materialInstanceNum |> uint16;
@@ -714,15 +709,19 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
 /// <param name="formVariation">The form variation to write.</param>
 /// <param name="writeFunctions">Functions to write various data types.</param>
 let public Write (formVariation : FormVariation) writeFunctions = 
+    let mutable (fileList : StrCode64Hash list) = List.empty
+
+    let getFileIndex hash = getFileIndexFromList &fileList hash 
+
     let convertedWriteFunctions = convertWriteFunctions writeFunctions
 
-    let materialInstance = makeMaterialInstances formVariation.TextureSwaps
+    let materialInstance = makeMaterialInstances formVariation.TextureSwaps getFileIndex
 
-    let boneConnections = makeBoneConnections formVariation.BoneAttachments
+    let boneConnections = makeBoneConnections formVariation.BoneAttachments getFileIndex
 
-    let CNPConnections = makeCNPConnections formVariation.CNPAttachments
+    let CNPConnections = makeCNPConnections formVariation.CNPAttachments getFileIndex
 
-    let header = calculateHeader formVariation (*(formVariation.HiddenMeshGroups.Length |> byte) (formVariation.ShownMeshGroups.Length |> byte) (formVariation.TextureSwaps.Length |> byte) (formVariation.BoneAttachments.Length |> byte) (formVariation.CNPAttachments.Length |> byte) (formVariation.TextureSwaps.Length |> uint16)*)
+    let header = calculateHeader formVariation fileList.Length (*(formVariation.HiddenMeshGroups.Length |> byte) (formVariation.ShownMeshGroups.Length |> byte) (formVariation.TextureSwaps.Length |> byte) (formVariation.BoneAttachments.Length |> byte) (formVariation.CNPAttachments.Length |> byte) (formVariation.TextureSwaps.Length |> uint16)*)
 
     writeHeader header convertedWriteFunctions.WriteChars convertedWriteFunctions.WriteUInt16 convertedWriteFunctions.WriteUInt16 convertedWriteFunctions.WriteByte convertedWriteFunctions.WriteEmptyBytes
 
