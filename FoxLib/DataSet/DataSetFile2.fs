@@ -4,7 +4,6 @@ open System
 open FoxLib.Core
 open FoxLib
 open FoxLib.Fox
-open System.Collections.Generic
 
 /// <summary>
 /// A StrCode hash and its corresponding string.
@@ -165,7 +164,7 @@ let private readContainer dataType containerType arraySize (unhashString : StrCo
     | PropertyInfoType.EntityHandle -> (readContainerContents<uint64> containerType arraySize readString readUInt64 alignRead) :> IContainer
     | PropertyInfoType.EntityLink -> (readContainerContents<EntityLink> containerType arraySize readString readEntityLink alignRead) :> IContainer
     | PropertyInfoType.WideVector3 -> (readContainerContents<WideVector3> containerType arraySize readString readWideVector3 alignRead) :> IContainer
-    | _ -> invalidOp "Unrecogfnized PropertyInfo type."
+    | _ -> invalidOp "Unrecognized PropertyInfo type."
 
 /// <summary>
 /// Reads an Entity property.
@@ -436,47 +435,85 @@ let public Read readFunctions =
     |> Array.map (fun _ -> readEntity readContainerFunc readPropertyInfoType readContainerType unhashString convertedReadFunctions.ReadUInt16 convertedReadFunctions.ReadUInt32 convertedReadFunctions.ReadUInt64 convertedReadFunctions.SkipBytes convertedReadFunctions.AlignRead)
     |> Array.toSeq
     
-let private writeContainer container dataType containerType =    
-    // Note: These functions should be returning embedded strings
+let private writeContainer container dataType (writeInt8 : int8 -> unit) (writeUInt8 : uint8 -> unit) writeInt16 writeUInt16 writeInt32 writeUInt32 writeInt64 writeUInt64 writeSingle writeDouble writeBool =
+    
+    let castAndWrite writeFunc value =
+        writeFunc <| unbox value
+        Seq.empty
+
+    let writeVector3 (value : Vector3) =
+        Vector3.Write value writeSingle
+        writeSingle 0.0f
+
+    let writeVector4 (value : Vector4) =
+        Vector4.Write value writeSingle
+
+    let writeQuat (value : Quaternion) =
+        Quaternion.Write value writeSingle
+
+    let writeMatrix3 (value : Matrix3) =
+        Matrix3.Write value writeSingle
+
+    let writeMatrix4 (value : Matrix4) =
+        Matrix4.Write value writeSingle
+
+    let writeColor (value : ColorRGBA) =
+        ColorRGBA.Write writeSingle value
+
+    let writeWideVector3 (value : WideVector3) =
+        WideVector3.Write value writeSingle writeUInt16
+
+    let writeEntityLink (value : EntityLink) =
+        writeUInt64 <| StrCode value.PackagePath
+        writeUInt64 <| StrCode value.ArchivePath
+        writeUInt64 <| StrCode value.NameInArchive
+        writeUInt64 <| value.EntityHandle
+        seq [ value.PackagePath; value.ArchivePath; value.NameInArchive ]
+        
+    let writeString value =
+        let str = value.ToString()
+        writeUInt64 <| StrCode str
+        Seq.singleton str
+        
     let writeValueFunction = match dataType with
-    | PropertyInfoType.Int8 -> writeInt8
-    | PropertyInfoType.UInt8 -> writeUInt8
-    | PropertyInfoType.Int16 -> writeInt16
-    | PropertyInfoType.UInt16 -> writeUInt16
-    | PropertyInfoType.Int32 -> writeInt32
-    | PropertyInfoType.UInt32 -> writeUInt32
-    | PropertyInfoType.Int64 -> writeInt64
-    | PropertyInfoType.UInt64 -> writeUInt64
-    | PropertyInfoType.Float -> writeSingle
-    | PropertyInfoType.Double -> writeDouble
-    | PropertyInfoType.Bool -> writeBool
+    | PropertyInfoType.Int8 -> castAndWrite writeInt8
+    | PropertyInfoType.UInt8 -> castAndWrite writeUInt8
+    | PropertyInfoType.Int16 -> castAndWrite writeInt16
+    | PropertyInfoType.UInt16 -> castAndWrite writeUInt16
+    | PropertyInfoType.Int32 -> castAndWrite writeInt32
+    | PropertyInfoType.UInt32 -> castAndWrite writeUInt32
+    | PropertyInfoType.Int64 -> castAndWrite writeInt64
+    | PropertyInfoType.UInt64 -> castAndWrite writeUInt64
+    | PropertyInfoType.Float -> castAndWrite writeSingle
+    | PropertyInfoType.Double -> castAndWrite writeDouble
+    | PropertyInfoType.Bool -> castAndWrite writeBool
     | PropertyInfoType.String -> writeString
     | PropertyInfoType.Path -> writeString
-    | PropertyInfoType.EntityPtr -> writeEntityPtr
-    | PropertyInfoType.Vector3 -> writeVector3
-    | PropertyInfoType.Vector4 -> writeVector4
-    | PropertyInfoType.Quat -> writeQuat
-    | PropertyInfoType.Matrix3 -> writeMatrix3
-    | PropertyInfoType.Matrix4 -> writeMatrix4
-    | PropertyInfoType.Color -> writeColor
+    | PropertyInfoType.EntityPtr -> castAndWrite writeUInt64
+    | PropertyInfoType.Vector3 -> castAndWrite writeVector3
+    | PropertyInfoType.Vector4 -> castAndWrite writeVector4
+    | PropertyInfoType.Quat -> castAndWrite writeQuat
+    | PropertyInfoType.Matrix3 -> castAndWrite writeMatrix3
+    | PropertyInfoType.Matrix4 -> castAndWrite writeMatrix4
+    | PropertyInfoType.Color -> castAndWrite writeColor
     | PropertyInfoType.FilePtr -> writeString
-    | PropertyInfoType.EntityHandle -> writeUInt64
+    | PropertyInfoType.EntityHandle -> castAndWrite writeUInt64
     | PropertyInfoType.EntityLink -> writeEntityLink
-    | PropertyInfoType.WideVector3 -> writeWideVector3
-    | _ -> invalidOp "Unrecogfnized PropertyInfo type."
+    | PropertyInfoType.WideVector3 -> castAndWrite writeWideVector3
+    | _ -> invalidOp "Unrecognized PropertyInfo type."
 
     let writeArray array =
         array
         |> Array.map (fun value -> writeValueFunction value)
         |> Seq.concat
 
-    let writeStringMap (stringMap : IDictionary<string, 'b>) =
+    let writeStringMap (stringMap : System.Collections.Generic.IDictionary<string, 'b>) =
         stringMap
         |> Seq.map (fun entry -> writeValueFunction entry.Value
                                  |> Seq.append (Seq.singleton entry.Key) )
         |> Seq.concat
         
-    match containerType with
+    match container with
     | StaticArray staticArray -> writeArray staticArray
     | DynamicArray dynamicArray -> writeArray dynamicArray
     | List list -> writeArray list
