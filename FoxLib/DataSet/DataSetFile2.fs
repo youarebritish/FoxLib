@@ -577,20 +577,24 @@ let private writeEntityHeader entityHeaderData writeUInt16 writeUInt32 writeHash
     ()
 
 // Write an entity and return all strings found within it.
-let private writeEntity (entity : Entity) getStreamPosition setStreamPosition writeEntityHeader =
+let private writeEntity (entity : Entity) getStreamPosition setStreamPosition writeEntityHeaderFunc writePropertyFunc =
     let headerSize = 64us
     
     // Skip the header for now. Write the contents and use them to derive the header data to write later.
     let headerPosition = getStreamPosition()
-    setStreamPosition (headerPosition + headerSize)
+    setStreamPosition (headerPosition + int64 headerSize)
 
-    // TODO Write static properties
-    // ...
+    // Write static properties.
+    let staticPropertyStrings = entity.StaticProperties
+                                |> Array.map (fun property -> writePropertyFunc property)
+                                |> Seq.toArray
 
     let staticDataSize = getStreamPosition() - headerPosition
 
-    // TODO Write dynamic properties
-    // ...
+    // Write dynamic properties.
+    let dynamicPropertyStrings = entity.DynamicProperties
+                                |> Array.map (fun property -> writePropertyFunc property)
+                                |> Seq.toArray
 
     let endPosition = getStreamPosition()
     let dataSize = endPosition - headerPosition
@@ -611,10 +615,13 @@ let private writeEntity (entity : Entity) getStreamPosition setStreamPosition wr
         DataSize = uint32 dataSize
     }
 
-    writeEntityHeader headerData
-
-    // TODO: Return class name and all strings embedded in properties.
+    writeEntityHeaderFunc headerData    
     setStreamPosition endPosition
+
+    // Return extracted strings.
+    [|entity.ClassName|]
+    |> Array.append staticPropertyStrings
+    |> Array.append dynamicPropertyStrings
 
 /// <summmary>
 /// Input functions to the Write function.
@@ -689,7 +696,7 @@ let public Write entities (writeFunctions : WriteFunctions) =
     |> convertedWriteFunctions.SetStreamPosition
     
     let stringLiterals = entities
-                         |> Seq.map (fun entity -> writeEntity entity)
+                         |> Seq.map (fun entity -> writeEntity entity convertedWriteFunctions.GetStreamPosition convertedWriteFunctions.SetStreamPosition writeEntityHeaderFunc writePropertyFunc)
 
     let offsetHashMap = convertedWriteFunctions.GetStreamPosition() |> int32
 
