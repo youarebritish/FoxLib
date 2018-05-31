@@ -560,12 +560,12 @@ type private EntityHeaderWriteData = {
 let private writeEntityHeader entityHeaderData writeUInt16 writeUInt32 writeHash writeZeros alignWrite =
     writeUInt16 entityHeaderData.HeaderSize
     writeUInt16 entityHeaderData.ClassId
-    writeZeros 2
+    writeZeros 2u
     writeUInt32 0x746e65u
     writeUInt32 entityHeaderData.Address
-    writeZeros 4
+    writeZeros 4u
     writeUInt32 entityHeaderData.EntityId
-    writeZeros 4
+    writeZeros 4u
     writeUInt16 entityHeaderData.Version
     writeHash <| StrCode entityHeaderData.ClassName
     writeUInt16 entityHeaderData.StaticPropertiesCount
@@ -573,7 +573,7 @@ let private writeEntityHeader entityHeaderData writeUInt16 writeUInt32 writeHash
     writeUInt16 entityHeaderData.HeaderSize
     writeUInt32 entityHeaderData.StaticDataSize
     writeUInt32 entityHeaderData.DataSize
-    alignWrite 16 0x00
+    alignWrite 16 0x00uy
     ()
 
 // Write an entity and return all strings found within it.
@@ -586,14 +586,14 @@ let private writeEntity (entity : Entity) getStreamPosition setStreamPosition wr
 
     // Write static properties.
     let staticPropertyStrings = entity.StaticProperties
-                                |> Array.map (fun property -> writePropertyFunc property)
+                                |> Seq.collect (fun property -> writePropertyFunc property)
                                 |> Seq.toArray
 
     let staticDataSize = getStreamPosition() - headerPosition
 
     // Write dynamic properties.
     let dynamicPropertyStrings = entity.DynamicProperties
-                                |> Array.map (fun property -> writePropertyFunc property)
+                                |> Seq.collect (fun property -> writePropertyFunc property)
                                 |> Seq.toArray
 
     let endPosition = getStreamPosition()
@@ -728,7 +728,14 @@ let public Write entities (writeFunctions : WriteFunctions) =
     convertedWriteFunctions.GetStreamPosition() + headerSize
     |> convertedWriteFunctions.SetStreamPosition
     
-    let writeEntityHeaderFunc entityHeaderData = writeEntityHeader entityHeaderData convertedWriteFunctions.WriteUInt16 convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteUInt64 convertedWriteFunctions.WriteZeroes convertedWriteFunctions.AlignWrite
+    let writeEntityHeaderFunc entityHeaderData = writeEntityHeader
+                                                    entityHeaderData
+                                                    convertedWriteFunctions.WriteUInt16
+                                                    convertedWriteFunctions.WriteUInt32
+                                                    convertedWriteFunctions.WriteUInt64
+                                                    convertedWriteFunctions.WriteZeroes
+                                                    convertedWriteFunctions.AlignWrite
+    
     let writePropertyFunc property = writeProperty
                                         property
                                         convertedWriteFunctions.GetStreamPosition
