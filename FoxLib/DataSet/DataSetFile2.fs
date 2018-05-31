@@ -512,12 +512,12 @@ let private writeContainer (container : IContainer) containerType dataType write
                                                                 let keyString = writeString keyValuePair.Key
                                                                 let valueStrings = writeValueFunction keyValuePair.Value
 
-                                                                alignWrite 16 0x00
+                                                                alignWrite 16 0x00uy
                                                                 Seq.append valueStrings keyString)
     |> Seq.concat 
 
 let private writeProperty property getStreamPosition setStreamPosition writeInt8 writeUInt8 writeInt16 writeUInt16 writeInt32 writeUInt32 writeInt64 writeUInt64 writeSingle writeDouble writeBool writeZeroes alignWrite =
-    let headerSize = 32u
+    let headerSize = 32L
 
     // Skip the header for now; we'll come back to it.
     let headerPosition = getStreamPosition()
@@ -525,7 +525,7 @@ let private writeProperty property getStreamPosition setStreamPosition writeInt8
     
     let strings = writeContainer property.Container property.ContainerType property.Type writeInt8 writeUInt8 writeInt16 writeUInt16 writeInt32 writeUInt32 writeInt64 writeUInt64 writeSingle writeDouble writeBool alignWrite
 
-    alignWrite 16 0x00
+    alignWrite 16 0x00uy
 
     let endPosition = getStreamPosition()
     let size = endPosition - headerPosition
@@ -538,7 +538,7 @@ let private writeProperty property getStreamPosition setStreamPosition writeInt8
     writeUInt8 <| uint8 property.ContainerType
     writeUInt16 <| property.Container.ArraySize
     writeUInt16 <| uint16 size
-    writeZeroes 16
+    writeZeroes 16u
 
     setStreamPosition endPosition
 
@@ -627,38 +627,62 @@ let private writeEntity (entity : Entity) getStreamPosition setStreamPosition wr
 /// Input functions to the Write function.
 /// </summmary>
 type public WriteFunctions = {
-    /// Function to write a float32.
-    WriteSingle : Action<float32>
+    /// Function to write a boolean.
+    WriteBool : Action<bool>
+    /// Function to write an int8.
+    WriteInt8 : Action<int8>
+    /// Function to write a uint8.
+    WriteUInt8 : Action<uint8>
+    /// Function to write an int16.
+    WriteInt16 : Action<int16>
     /// Function to write a uint16.
     WriteUInt16 : Action<uint16>
     /// Function to write a uint32.
     WriteUInt32 : Action<uint32>
     /// Function to write a int32.
     WriteInt32 : Action<int32>
+    /// Function to write an int64.
+    WriteInt64 : Action<int64>
     /// Function to write a int64.
-    WriteUInt64 : Action<uint64>
+    WriteUInt64 : Action<uint64>    
+    /// Function to write a float32.
+    WriteSingle : Action<float32>
+    /// Function to write a double.
+    WriteDouble : Action<float>
     /// Function to write a number of filler bytes.
     WriteEmptyBytes : Action<int>
     /// Function to retrieve the current stream position.
     GetStreamPosition : Func<int64>
     /// Function to set the current stream position.
     SetStreamPosition : Action<int64>
+    /// Function to write a number of zeroes.
+    WriteZeroes : Action<uint32>
+    /// Function to align the writer.
+    AlignWrite : Action<int, byte>
 }
 
 /// <summmary>
 /// Write parameters converted to F# functions.
 /// </summmary>
 type private ConvertedWriteFunctions = {
-    WriteSingle : float32 -> unit
+    WriteBool : bool -> unit
+    WriteInt8 : int8 -> unit
+    WriteUInt8 : uint8 -> unit
+    WriteInt16 : int16 -> unit
     WriteUInt16 : uint16 -> unit
-    WriteUInt32 : uint32 -> unit
     WriteInt32 : int32 -> unit
+    WriteUInt32 : uint32 -> unit
+    WriteInt64 : int64 -> unit
     WriteUInt64 : uint64 -> unit
+    WriteSingle : float32 -> unit
+    WriteDouble : float -> unit
     WriteEmptyBytes : int32 -> unit
     /// Function to retrieve the current stream position.
     GetStreamPosition : unit -> int64
     /// Function to set the current stream position.
     SetStreamPosition : int64 -> unit
+    WriteZeroes : uint32 -> unit
+    AlignWrite : int -> byte -> unit
 }
 
 /// <summmary>
@@ -675,15 +699,24 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
     if rawWriteFunctions.WriteEmptyBytes |> isNull then nullArg "WriteEmptyBytes"
     if rawWriteFunctions.GetStreamPosition |> isNull then nullArg "GetStreamPosition"
     if rawWriteFunctions.SetStreamPosition |> isNull then nullArg "SetStreamPosition"
+    // TODO check others
 
     { ConvertedWriteFunctions.WriteSingle = rawWriteFunctions.WriteSingle.Invoke;
-    WriteUInt16 = rawWriteFunctions.WriteUInt16.Invoke;
-    WriteUInt32 = rawWriteFunctions.WriteUInt32.Invoke;
+    WriteBool = rawWriteFunctions.WriteBool.Invoke;
+    WriteInt8 = rawWriteFunctions.WriteInt8.Invoke;
+    WriteUInt8 = rawWriteFunctions.WriteUInt8.Invoke;
+    WriteInt16 = rawWriteFunctions.WriteInt16.Invoke;
+    WriteUInt16 = rawWriteFunctions.WriteUInt16.Invoke;    
     WriteInt32 = rawWriteFunctions.WriteInt32.Invoke;
+    WriteUInt32 = rawWriteFunctions.WriteUInt32.Invoke;
+    WriteInt64 = rawWriteFunctions.WriteInt64.Invoke;
     WriteUInt64 = rawWriteFunctions.WriteUInt64.Invoke;
+    WriteDouble = rawWriteFunctions.WriteDouble.Invoke;
     WriteEmptyBytes = rawWriteFunctions.WriteEmptyBytes.Invoke;
     GetStreamPosition = rawWriteFunctions.GetStreamPosition.Invoke;
-    SetStreamPosition = rawWriteFunctions.SetStreamPosition.Invoke }
+    SetStreamPosition = rawWriteFunctions.SetStreamPosition.Invoke;
+    WriteZeroes = rawWriteFunctions.WriteZeroes.Invoke;
+    AlignWrite = (fun alignment data -> rawWriteFunctions.AlignWrite.Invoke(alignment, data)) }
 
 let public Write entities (writeFunctions : WriteFunctions) =
     let headerSize = 32L
@@ -695,8 +728,32 @@ let public Write entities (writeFunctions : WriteFunctions) =
     convertedWriteFunctions.GetStreamPosition() + headerSize
     |> convertedWriteFunctions.SetStreamPosition
     
+    let writeEntityHeaderFunc entityHeaderData = writeEntityHeader entityHeaderData convertedWriteFunctions.WriteUInt16 convertedWriteFunctions.WriteUInt32 convertedWriteFunctions.WriteUInt64 convertedWriteFunctions.WriteZeroes convertedWriteFunctions.AlignWrite
+    let writePropertyFunc property = writeProperty
+                                        property
+                                        convertedWriteFunctions.GetStreamPosition
+                                        convertedWriteFunctions.SetStreamPosition
+                                        convertedWriteFunctions.WriteInt8
+                                        convertedWriteFunctions.WriteUInt8
+                                        convertedWriteFunctions.WriteInt16
+                                        convertedWriteFunctions.WriteUInt16
+                                        convertedWriteFunctions.WriteInt32
+                                        convertedWriteFunctions.WriteUInt32
+                                        convertedWriteFunctions.WriteInt64
+                                        convertedWriteFunctions.WriteUInt64
+                                        convertedWriteFunctions.WriteSingle
+                                        convertedWriteFunctions.WriteDouble
+                                        convertedWriteFunctions.WriteBool
+                                        convertedWriteFunctions.WriteZeroes
+                                        convertedWriteFunctions.AlignWrite
+   
     let stringLiterals = entities
-                         |> Seq.map (fun entity -> writeEntity entity convertedWriteFunctions.GetStreamPosition convertedWriteFunctions.SetStreamPosition writeEntityHeaderFunc writePropertyFunc)
+                         |> Seq.map (fun entity -> writeEntity
+                                                    entity
+                                                    convertedWriteFunctions.GetStreamPosition
+                                                    convertedWriteFunctions.SetStreamPosition
+                                                    writeEntityHeaderFunc
+                                                    writePropertyFunc)
 
     let offsetHashMap = convertedWriteFunctions.GetStreamPosition() |> int32
 
