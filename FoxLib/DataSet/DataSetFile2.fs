@@ -435,7 +435,7 @@ let public Read readFunctions =
     |> Array.map (fun _ -> readEntity readContainerFunc readPropertyInfoType readContainerType unhashString convertedReadFunctions.ReadUInt16 convertedReadFunctions.ReadUInt32 convertedReadFunctions.ReadUInt64 convertedReadFunctions.SkipBytes convertedReadFunctions.AlignRead)
     |> Array.toSeq
     
-let private writeContainer container dataType (writeInt8 : int8 -> unit) (writeUInt8 : uint8 -> unit) writeInt16 writeUInt16 writeInt32 writeUInt32 writeInt64 writeUInt64 writeSingle writeDouble writeBool =
+let private writeContainer (container : IContainer) containerType dataType writeInt8 writeUInt8 writeInt16 writeUInt16 writeInt32 writeUInt32 writeInt64 writeUInt64 writeSingle writeDouble writeBool alignWrite =
     
     let castAndWrite writeFunc value =
         writeFunc <| unbox value
@@ -463,12 +463,13 @@ let private writeContainer container dataType (writeInt8 : int8 -> unit) (writeU
     let writeWideVector3 (value : WideVector3) =
         WideVector3.Write value writeSingle writeUInt16
 
-    let writeEntityLink (value : EntityLink) =
-        writeUInt64 <| StrCode value.PackagePath
-        writeUInt64 <| StrCode value.ArchivePath
-        writeUInt64 <| StrCode value.NameInArchive
-        writeUInt64 <| value.EntityHandle
-        seq [ value.PackagePath; value.ArchivePath; value.NameInArchive ]
+    let writeEntityLink value =
+        let entityLink = unbox value
+        writeUInt64 <| StrCode entityLink.PackagePath
+        writeUInt64 <| StrCode entityLink.ArchivePath
+        writeUInt64 <| StrCode entityLink.NameInArchive
+        writeUInt64 <| entityLink.EntityHandle
+        seq [ entityLink.PackagePath; entityLink.ArchivePath; entityLink.NameInArchive ]
         
     let writeString value =
         let str = value.ToString()
@@ -501,34 +502,28 @@ let private writeContainer container dataType (writeInt8 : int8 -> unit) (writeU
     | PropertyInfoType.EntityLink -> writeEntityLink
     | PropertyInfoType.WideVector3 -> castAndWrite writeWideVector3
     | _ -> invalidOp "Unrecognized PropertyInfo type."
-
-    let writeArray array =
-        array
-        |> Array.map (fun value -> writeValueFunction value)
-        |> Seq.concat
-
-    let writeStringMap (stringMap : System.Collections.Generic.IDictionary<string, 'b>) =
-        stringMap
-        |> Seq.map (fun entry -> writeValueFunction entry.Value
-                                 |> Seq.append (Seq.singleton entry.Key) )
-        |> Seq.concat
         
-    match container with
-    | StaticArray staticArray -> writeArray staticArray
-    | DynamicArray dynamicArray -> writeArray dynamicArray
-    | List list -> writeArray list
-    | StringMap stringMap -> writeStringMap stringMap    
+    seq { for i in container -> i }
+    |> Seq.map (fun element -> match containerType with
+                                | ContainerType.StaticArray -> writeValueFunction element
+                                | ContainerType.DynamicArray -> writeValueFunction element
+                                | ContainerType.List -> writeValueFunction element
+                                | ContainerType.StringMap ->    let keyValuePair = unbox<System.Collections.Generic.KeyValuePair<string, obj>> element
+                                                                let keyString = writeString keyValuePair.Key
+                                                                let valueStrings = writeValueFunction keyValuePair.Value
 
-let private writeProperty property getStreamPosition setStreamPosition writeUInt8 writeUInt16 writeHash writeZeroes alignWrite =
+                                                                alignWrite 16 0x00
+                                                                Seq.append valueStrings keyString)
+    |> Seq.concat 
+
+let private writeProperty property getStreamPosition setStreamPosition writeInt8 writeUInt8 writeInt16 writeUInt16 writeInt32 writeUInt32 writeInt64 writeUInt64 writeSingle writeDouble writeBool writeZeroes alignWrite =
     let headerSize = 32u
 
     // Skip the header for now; we'll come back to it.
     let headerPosition = getStreamPosition()
     setStreamPosition <| headerPosition + headerSize
-
-    // TODO write container
-    // Retrieve embedded strings and arraySize
-    // ...
+    
+    let strings = writeContainer property.Container property.ContainerType property.Type writeInt8 writeUInt8 writeInt16 writeUInt16 writeInt32 writeUInt32 writeInt64 writeUInt64 writeSingle writeDouble writeBool alignWrite
 
     alignWrite 16 0x00
 
@@ -538,7 +533,7 @@ let private writeProperty property getStreamPosition setStreamPosition writeUInt
     // Now go back and write the header.
     setStreamPosition headerPosition
     
-    writeHash <| StrCode property.Name
+    writeUInt64 <| StrCode property.Name
     writeUInt8 <| uint8 property.Type
     writeUInt8 <| uint8 property.ContainerType
     writeUInt16 <| property.Container.ArraySize
@@ -547,8 +542,7 @@ let private writeProperty property getStreamPosition setStreamPosition writeUInt
 
     setStreamPosition endPosition
 
-    // TODO Return embedded strings (including StringMap keys)
-    ()
+    strings
 
 type private EntityHeaderWriteData = {
     HeaderSize : uint16
