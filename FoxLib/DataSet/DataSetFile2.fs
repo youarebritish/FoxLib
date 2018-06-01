@@ -434,7 +434,16 @@ let public Read readFunctions =
     [|1u..headerData.EntityCount|]
     |> Array.map (fun _ -> readEntity readContainerFunc readPropertyInfoType readContainerType unhashString convertedReadFunctions.ReadUInt16 convertedReadFunctions.ReadUInt32 convertedReadFunctions.ReadUInt64 convertedReadFunctions.SkipBytes convertedReadFunctions.AlignRead)
     |> Array.toSeq
-    
+
+let private stringEncoding = System.Text.Encoding.UTF8;
+
+let private writeLookupStringLiteral writeUInt64 writeUInt32 writeBytes (str : string) =
+    let stringBytes = if str = null then [||] else stringEncoding.GetBytes(str)
+
+    writeUInt64 <| StrCode str
+    writeUInt32 <| uint32 stringBytes.Length
+    writeBytes stringBytes
+
 let private writeContainer (container : IContainer) containerType dataType writeInt8 writeUInt8 writeInt16 writeUInt16 writeInt32 writeUInt32 writeInt64 writeUInt64 writeSingle writeDouble writeBool alignWrite =
     
     let castAndWrite writeFunc value =
@@ -649,6 +658,8 @@ type public WriteFunctions = {
     WriteSingle : Action<float32>
     /// Function to write a double.
     WriteDouble : Action<float>
+    /// Function to write an array of bytes.
+    WriteBytes : Action<byte[]>
     /// Function to write a number of filler bytes.
     WriteEmptyBytes : Action<int>
     /// Function to retrieve the current stream position.
@@ -676,6 +687,7 @@ type private ConvertedWriteFunctions = {
     WriteUInt64 : uint64 -> unit
     WriteSingle : float32 -> unit
     WriteDouble : float -> unit
+    WriteBytes : byte[] -> unit
     WriteEmptyBytes : int32 -> unit
     /// Function to retrieve the current stream position.
     GetStreamPosition : unit -> int64
@@ -712,6 +724,7 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
     WriteInt64 = rawWriteFunctions.WriteInt64.Invoke;
     WriteUInt64 = rawWriteFunctions.WriteUInt64.Invoke;
     WriteDouble = rawWriteFunctions.WriteDouble.Invoke;
+    WriteBytes = rawWriteFunctions.WriteBytes.Invoke;
     WriteEmptyBytes = rawWriteFunctions.WriteEmptyBytes.Invoke;
     GetStreamPosition = rawWriteFunctions.GetStreamPosition.Invoke;
     SetStreamPosition = rawWriteFunctions.SetStreamPosition.Invoke;
@@ -754,18 +767,26 @@ let public Write entities (writeFunctions : WriteFunctions) =
                                         convertedWriteFunctions.WriteZeroes
                                         convertedWriteFunctions.AlignWrite
    
+   // TODO uniquify
     let stringLiterals = entities
-                         |> Seq.map (fun entity -> writeEntity
-                                                    entity
-                                                    convertedWriteFunctions.GetStreamPosition
-                                                    convertedWriteFunctions.SetStreamPosition
-                                                    writeEntityHeaderFunc
-                                                    writePropertyFunc)
+                         |> Seq.collect (fun entity -> writeEntity
+                                                        entity
+                                                        convertedWriteFunctions.GetStreamPosition
+                                                        convertedWriteFunctions.SetStreamPosition
+                                                        writeEntityHeaderFunc
+                                                        writePropertyFunc)
+                        |> Seq.distinct
+                        |> Seq.toArray
 
     let offsetHashMap = convertedWriteFunctions.GetStreamPosition() |> int32
 
-    // TODO
     // Write string lookup table
+    stringLiterals
+    |> Array.iter (fun literal -> writeLookupStringLiteral
+                                    convertedWriteFunctions.WriteUInt64
+                                    convertedWriteFunctions.WriteUInt32
+                                    convertedWriteFunctions.WriteBytes
+                                    literal)
 
     convertedWriteFunctions.WriteUInt64 0UL
 
