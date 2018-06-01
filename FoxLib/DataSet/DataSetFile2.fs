@@ -733,7 +733,7 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
 
 let public Write entities (writeFunctions : WriteFunctions) =
     let headerSize = 32L
-    let headerPosition = 0
+    let headerPosition = 0L
 
     let convertedWriteFunctions = convertWriteFunctions writeFunctions
 
@@ -767,20 +767,20 @@ let public Write entities (writeFunctions : WriteFunctions) =
                                         convertedWriteFunctions.WriteZeroes
                                         convertedWriteFunctions.AlignWrite
    
-   // TODO uniquify
+    // Write entities.
     let stringLiterals = entities
-                         |> Seq.collect (fun entity -> writeEntity
-                                                        entity
-                                                        convertedWriteFunctions.GetStreamPosition
-                                                        convertedWriteFunctions.SetStreamPosition
-                                                        writeEntityHeaderFunc
-                                                        writePropertyFunc)
-                        |> Seq.distinct
-                        |> Seq.toArray
+                            |> Seq.collect (fun entity -> writeEntity
+                                                            entity
+                                                            convertedWriteFunctions.GetStreamPosition
+                                                            convertedWriteFunctions.SetStreamPosition
+                                                            writeEntityHeaderFunc
+                                                            writePropertyFunc)
+                            |> Seq.distinct
+                            |> Seq.toArray
 
-    let offsetHashMap = convertedWriteFunctions.GetStreamPosition() |> int32
+    let offsetHashMap = convertedWriteFunctions.GetStreamPosition() |> uint32
 
-    // Write string lookup table
+    // Write string lookup table.
     stringLiterals
     |> Array.iter (fun literal -> writeLookupStringLiteral
                                     convertedWriteFunctions.WriteUInt64
@@ -788,23 +788,23 @@ let public Write entities (writeFunctions : WriteFunctions) =
                                     convertedWriteFunctions.WriteBytes
                                     literal)
 
-    convertedWriteFunctions.WriteUInt64 0UL
+    convertedWriteFunctions.WriteUInt64 0UL    
+    convertedWriteFunctions.AlignWrite 16 0x00uy
+    convertedWriteFunctions.WriteBytes [|0x00uy; 0x00uy; 0x65uy; 0x6Euy; 0x64uy|]
+    convertedWriteFunctions.AlignWrite 16 0x00uy
 
-    (*
-    output.AlignWrite(16, 0x00);
-    writer.Write(new byte[] {0x00, 0x00, 0x65, 0x6E, 0x64});
-    output.AlignWrite(16, 0x00);
+    let endPosition = convertedWriteFunctions.GetStreamPosition()
 
-    long endPosition = output.Position;
-    output.Position = headerPosition;
-    int entityCount = Entities.Count();
-    writer.Write(MagicNumber1);
-    writer.Write(MagicNumber2);
-    writer.Write(entityCount);
-    writer.Write(offsetHashMap);
-    writer.Write(HeaderSize);
-    writer.WriteZeros(12);
-    output.Position = endPosition;
-    *)
+    // Go back and write the header.
+    convertedWriteFunctions.SetStreamPosition headerPosition
 
-    ()
+    let entityCount = Seq.length entities
+
+    convertedWriteFunctions.WriteUInt32 0x786f62f2u
+    convertedWriteFunctions.WriteUInt32 0x35u
+    convertedWriteFunctions.WriteInt32 entityCount
+    convertedWriteFunctions.WriteUInt32 offsetHashMap
+    convertedWriteFunctions.WriteInt64 headerSize
+    convertedWriteFunctions.WriteZeroes 12u
+
+    convertedWriteFunctions.SetStreamPosition endPosition
