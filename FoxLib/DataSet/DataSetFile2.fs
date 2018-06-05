@@ -512,14 +512,18 @@ let private writeContainer (container : IContainer) containerType dataType write
     | PropertyInfoType.WideVector3 -> castAndWrite writeWideVector3
     | _ -> invalidOp "Unrecognized PropertyInfo type."
         
-    seq { for i in container -> i }
+    container
+    |> Seq.cast<obj>
     |> Seq.map (fun element -> match containerType with
                                 | ContainerType.StaticArray -> writeValueFunction element
                                 | ContainerType.DynamicArray -> writeValueFunction element
                                 | ContainerType.List -> writeValueFunction element
-                                | ContainerType.StringMap ->    let keyValuePair = unbox<System.Collections.Generic.KeyValuePair<string, obj>> element
-                                                                let keyString = writeString keyValuePair.Key
-                                                                let valueStrings = writeValueFunction keyValuePair.Value
+                                | ContainerType.StringMap ->    let kvpType = element.GetType()
+                                                                let key = unbox<string> (kvpType.GetProperty("Key").GetValue(element))
+                                                                let value = kvpType.GetProperty("Value").GetValue(element)
+
+                                                                let keyString = writeString key
+                                                                let valueStrings = writeValueFunction value
 
                                                                 alignWrite 16 0x00uy
                                                                 Seq.append valueStrings keyString)
