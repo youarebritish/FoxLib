@@ -660,8 +660,6 @@ type public WriteFunctions = {
     WriteDouble : Action<float>
     /// Function to write an array of bytes.
     WriteBytes : Action<byte[]>
-    /// Function to write a number of filler bytes.
-    WriteEmptyBytes : Action<int>
     /// Function to retrieve the current stream position.
     GetStreamPosition : Func<int64>
     /// Function to set the current stream position.
@@ -688,7 +686,6 @@ type private ConvertedWriteFunctions = {
     WriteSingle : float32 -> unit
     WriteDouble : float -> unit
     WriteBytes : byte[] -> unit
-    WriteEmptyBytes : int32 -> unit
     /// Function to retrieve the current stream position.
     GetStreamPosition : unit -> int64
     /// Function to set the current stream position.
@@ -708,7 +705,6 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
     if rawWriteFunctions.WriteUInt32 |> isNull then nullArg "WriteUInt32"
     if rawWriteFunctions.WriteInt32 |> isNull then nullArg "WriteInt32"
     if rawWriteFunctions.WriteUInt64 |> isNull then nullArg "WriteUInt64"
-    if rawWriteFunctions.WriteEmptyBytes |> isNull then nullArg "WriteEmptyBytes"
     if rawWriteFunctions.GetStreamPosition |> isNull then nullArg "GetStreamPosition"
     if rawWriteFunctions.SetStreamPosition |> isNull then nullArg "SetStreamPosition"
     // TODO check others
@@ -725,7 +721,6 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
     WriteUInt64 = rawWriteFunctions.WriteUInt64.Invoke;
     WriteDouble = rawWriteFunctions.WriteDouble.Invoke;
     WriteBytes = rawWriteFunctions.WriteBytes.Invoke;
-    WriteEmptyBytes = rawWriteFunctions.WriteEmptyBytes.Invoke;
     GetStreamPosition = rawWriteFunctions.GetStreamPosition.Invoke;
     SetStreamPosition = rawWriteFunctions.SetStreamPosition.Invoke;
     WriteZeroes = rawWriteFunctions.WriteZeroes.Invoke;
