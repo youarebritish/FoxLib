@@ -734,13 +734,13 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
     AlignWrite = (fun alignment data -> rawWriteFunctions.AlignWrite.Invoke(alignment, data)) }
 
 let public Write entities (writeFunctions : WriteFunctions) =
-    let headerSize = 32L
+    let headerSize = 32u
     let headerPosition = 0L
 
     let convertedWriteFunctions = convertWriteFunctions writeFunctions
 
     // Skip the header for now. Write the entities first.
-    convertedWriteFunctions.GetStreamPosition() + headerSize
+    convertedWriteFunctions.GetStreamPosition() + (int64 headerSize)
     |> convertedWriteFunctions.SetStreamPosition
     
     let writeEntityHeaderFunc entityHeaderData = writeEntityHeader
@@ -813,7 +813,7 @@ let public Write entities (writeFunctions : WriteFunctions) =
     convertedWriteFunctions.WriteUInt32 0x35u
     convertedWriteFunctions.WriteInt32 entityCount
     convertedWriteFunctions.WriteUInt32 offsetHashMap
-    convertedWriteFunctions.WriteInt64 headerSize
+    convertedWriteFunctions.WriteUInt32 headerSize
     convertedWriteFunctions.WriteZeroes 12u
-
+    
     convertedWriteFunctions.SetStreamPosition endPosition
