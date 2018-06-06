@@ -448,7 +448,7 @@ let private writeContainer (container : IContainer) containerType dataType write
     
     let castAndWrite writeFunc value =
         writeFunc <| unbox value
-        Seq.empty
+        Array.empty
 
     let writeVector3 (value : Vector3) =
         Vector3.Write value writeSingle
@@ -478,12 +478,12 @@ let private writeContainer (container : IContainer) containerType dataType write
         writeUInt64 <| StrCode entityLink.ArchivePath
         writeUInt64 <| StrCode entityLink.NameInArchive
         writeUInt64 <| entityLink.EntityHandle
-        seq [ entityLink.PackagePath; entityLink.ArchivePath; entityLink.NameInArchive ]
+        [| entityLink.PackagePath; entityLink.ArchivePath; entityLink.NameInArchive |]
         
     let writeString value =
         let str = value.ToString()
         writeUInt64 <| StrCode str
-        Seq.singleton str
+        [|str|]
         
     let writeValueFunction = match dataType with
     | PropertyInfoType.Int8 -> castAndWrite writeInt8
@@ -526,8 +526,8 @@ let private writeContainer (container : IContainer) containerType dataType write
                                                                 let valueStrings = writeValueFunction value
 
                                                                 alignWrite 16 0x00uy
-                                                                Seq.append valueStrings keyString)
-    |> Seq.concat 
+                                                                Array.append valueStrings keyString)
+    |> Array.concat 
 
 let private writeProperty property getStreamPosition setStreamPosition writeInt8 writeUInt8 writeInt16 writeUInt16 writeInt32 writeUInt32 writeInt64 writeUInt64 writeSingle writeDouble writeBool writeZeroes alignWrite =
     let headerSize = 32L
@@ -537,7 +537,7 @@ let private writeProperty property getStreamPosition setStreamPosition writeInt8
     setStreamPosition <| headerPosition + headerSize
     
     let strings = writeContainer property.Container property.ContainerType property.Type writeInt8 writeUInt8 writeInt16 writeUInt16 writeInt32 writeUInt32 writeInt64 writeUInt64 writeSingle writeDouble writeBool alignWrite
-
+    
     alignWrite 16 0x00uy
 
     let endPosition = getStreamPosition()
@@ -550,12 +550,14 @@ let private writeProperty property getStreamPosition setStreamPosition writeInt8
     writeUInt8 <| uint8 property.Type
     writeUInt8 <| uint8 property.ContainerType
     writeUInt16 <| property.Container.ArraySize
+    writeUInt16 <| uint16 headerSize
     writeUInt16 <| uint16 size
     writeZeroes 16u
 
     setStreamPosition endPosition
 
-    strings
+    Seq.singleton property.Name
+    |> Seq.append strings
 
 type private EntityHeaderWriteData = {
     HeaderSize : uint16
@@ -632,8 +634,9 @@ let private writeEntity (entity : Entity) getStreamPosition setStreamPosition wr
     setStreamPosition endPosition
 
     // Return extracted strings.
-    [|entity.ClassName|]
-    |> Array.append staticPropertyStrings
+    //[|entity.ClassName|]
+    //|> Array.append staticPropertyStrings
+    staticPropertyStrings
     |> Array.append dynamicPropertyStrings
 
 /// <summmary>
@@ -765,7 +768,7 @@ let public Write entities (writeFunctions : WriteFunctions) =
                                         convertedWriteFunctions.WriteBool
                                         convertedWriteFunctions.WriteZeroes
                                         convertedWriteFunctions.AlignWrite
-   
+                                           
     // Write entities.
     let stringLiterals = entities
                             |> Seq.collect (fun entity -> writeEntity
@@ -777,10 +780,17 @@ let public Write entities (writeFunctions : WriteFunctions) =
                             |> Seq.distinct
                             |> Seq.toArray
 
+    // TODO: Do this without a separate iteration pass
+    let classNames = entities
+                     |> Seq.map (fun entity -> entity.ClassName)
+                     |> Seq.distinct
+                     |> Seq.toArray
+
     let offsetHashMap = convertedWriteFunctions.GetStreamPosition() |> uint32
 
     // Write string lookup table.
     stringLiterals
+    |> Array.append classNames
     |> Array.iter (fun literal -> writeLookupStringLiteral
                                     convertedWriteFunctions.WriteUInt64
                                     convertedWriteFunctions.WriteUInt32
