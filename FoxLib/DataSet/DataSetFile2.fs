@@ -585,7 +585,7 @@ let private writeEntityHeader entityHeaderData writeUInt16 writeUInt32 writeHash
     writeHash <| StrCode entityHeaderData.ClassName
     writeUInt16 entityHeaderData.StaticPropertiesCount
     writeUInt16 entityHeaderData.DynamicPropertiesCount
-    writeUInt16 entityHeaderData.HeaderSize
+    writeUInt32 <| uint32 entityHeaderData.HeaderSize
     writeUInt32 entityHeaderData.StaticDataSize
     writeUInt32 entityHeaderData.DataSize
     alignWrite 16 0x00uy
