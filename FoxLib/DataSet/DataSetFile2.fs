@@ -634,9 +634,8 @@ let private writeEntity (entity : Entity) getStreamPosition setStreamPosition wr
     setStreamPosition endPosition
 
     // Return extracted strings.
-    //[|entity.ClassName|]
-    //|> Array.append staticPropertyStrings
-    staticPropertyStrings
+    [|entity.ClassName|]
+    |> Array.append staticPropertyStrings
     |> Array.append dynamicPropertyStrings
 
 /// <summmary>
@@ -771,26 +770,19 @@ let public Write entities (writeFunctions : WriteFunctions) =
                                            
     // Write entities.
     let stringLiterals = entities
-                            |> Seq.collect (fun entity -> writeEntity
-                                                            entity
-                                                            convertedWriteFunctions.GetStreamPosition
-                                                            convertedWriteFunctions.SetStreamPosition
-                                                            writeEntityHeaderFunc
-                                                            writePropertyFunc)
-                            |> Seq.distinct
                             |> Seq.toArray
-
-    // TODO: Do this without a separate iteration pass
-    let classNames = entities
-                     |> Seq.map (fun entity -> entity.ClassName)
-                     |> Seq.distinct
-                     |> Seq.toArray
-
+                            |> Array.collect (fun entity -> writeEntity
+                                                                entity
+                                                                convertedWriteFunctions.GetStreamPosition
+                                                                convertedWriteFunctions.SetStreamPosition
+                                                                writeEntityHeaderFunc
+                                                                writePropertyFunc)
+                            |> Array.distinct
+                            
     let offsetHashMap = convertedWriteFunctions.GetStreamPosition() |> uint32
 
     // Write string lookup table.
     stringLiterals
-    |> Array.append classNames
     |> Array.iter (fun literal -> writeLookupStringLiteral
                                     convertedWriteFunctions.WriteUInt64
                                     convertedWriteFunctions.WriteUInt32

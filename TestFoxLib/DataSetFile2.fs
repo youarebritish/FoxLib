@@ -65,7 +65,7 @@ let private createWriteFunctions (writer : BinaryWriter) =
 [<Category("DataSetFile2")>]
 let ``vanilla DataSetFile2 should repack with original contents`` () =
     let baseDirectory = __SOURCE_DIRECTORY__
-    let inputFilePath = "s10081_route.fox2"//"gntn_common_gimmick.fox2"
+    let inputFilePath = "afgh_enemyBase_asset.fox2"
     let inputFullPath = Path.Combine(baseDirectory, inputFilePath)
     use inputStream = new FileStream(inputFullPath, FileMode.Open)
     use reader = new BinaryReader(inputStream)
@@ -76,7 +76,7 @@ let ``vanilla DataSetFile2 should repack with original contents`` () =
     reader.Close()
     inputStream.Close()
     
-    let outputFilePath = "s10081_route_REPACKED.fox2"//"gntn_common_gimmick_REPACKED.fox2"
+    let outputFilePath = "afgh_enemyBase_asset_REPACKED.fox2"
     let outputFullPath = Path.Combine(baseDirectory, outputFilePath)
     use outputStream = new FileStream(outputFullPath, FileMode.OpenOrCreate)
     use writer = new BinaryWriter(outputStream)
