@@ -62,6 +62,8 @@
     <Compile Include="Core\Matrix3.fs" />
     <Compile Include="Core\Matrix4.fs" />
     <Compile Include="Fox\Fox.fs" />
+    <Compile Include="Fx\FxModuleGraph.fs" />
+    <Compile Include="Fx\FxVfxFile.fs" />
     <Compile Include="GimmickLocator\GimmickLocator.fs" />
     <Compile Include="GimmickLocator\GimmickLocatorSet.fs" />
     <Compile Include="RouteSet\TppRouteSet.fs" />
