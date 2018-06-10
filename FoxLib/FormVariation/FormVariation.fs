@@ -352,8 +352,7 @@ let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
 /// <summmary>
 /// Parses a FormVariation list from fv2 format.
 /// </summmary>
-/// <param name="readFunction">Function to read a data type from the input.</param>
-/// <param name="readFunction">Function to set the stream position to a given number.</param>
+/// <param name="readFunctions">Functions to read a data type from the input.</param>
 /// <returns>The parsed FormVariation list.</returns>
 let public Read (readFunctions : ReadFunctions) =
     let convertedFunctions = convertReadFunctions readFunctions

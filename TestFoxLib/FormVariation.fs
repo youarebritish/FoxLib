@@ -2,23 +2,8 @@
 
 open System
 open System.IO
-open FoxLib.Core
 open FoxLib.FormVariation
 open NUnit.Framework
-open System.Numerics
-
-//let private createRandomMaterialParamBinary (random : Random)= 
-//    let makeFloat = random.NextDouble >> float32
-
-//    let specularColor : ColorRGB = { Red = makeFloat(); Green = makeFloat(); Blue = makeFloat(); }
-
-//    { F0 = makeFloat();
-//    RoughnessThreshold = makeFloat();
-//    ReflectionDependDiffuse = makeFloat();
-//    AnisotropicRoughness = makeFloat();
-//    SpecularColor = specularColor;
-//    Translucency = makeFloat();
-//    }
 
 let private createWriteFunctions (writer : BinaryWriter) =
     { WriteUInt16 = new Action<uint16>(writer.Write);
