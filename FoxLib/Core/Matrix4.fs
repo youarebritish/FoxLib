@@ -38,3 +38,4 @@ let internal Write (matrix : Matrix4) writeSingle =
     matrix.Col0 |> Array.iter writeSingle
     matrix.Col1 |> Array.iter writeSingle
     matrix.Col2 |> Array.iter writeSingle
+    matrix.Col3 |> Array.iter writeSingle

@@ -285,3 +285,5 @@ TestFoxLib/resident_common_settings_REPACKED.fox2.xml
 TestFoxLib/afgh_enemyBase_asset.fox2.xml
 TestFoxLib/afgh_enemyBase_asset_REPACKED.fox2
 TestFoxLib/afgh_enemyBase_asset_REPACKED.fox2.xml
+*.fox2
+*.xml
