@@ -86,6 +86,11 @@ type public HalfColorRGBA =  {
 }
     
 /// <summary>
-/// A hashed string. Used in Lua, langIds, and various binary file formats to encode strings.
+/// A hashed string, with the first 4 bytes truncated. Used in Lua, langIds, and various binary file formats to encode strings.
 /// </summary>
 type public StrCode32Hash = uint32
+
+/// <summary>
+/// A hashed string, used in various binary file formats to encode strings.
+/// </summary>
+type public StrCode64Hash = uint64
