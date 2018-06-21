@@ -29,7 +29,7 @@ type private Header = {
     Height : uint16;
     Depth : uint16;
     MipMapCount : byte;
-    NrtFlag : uint16;
+    NrtFlag : byte;
     UnknownFlags : UnknownFlags;
     // Skip 8 bytes for an int with a value of 1 and then an int with a value of 0
     TextureType : TextureType;
@@ -51,7 +51,7 @@ type private Header = {
 /// <param name="skipBytes">Function to skip bytes.</param>
 /// <returns>Returns a parsed fv2 header.</returns>
 let private readHeader readUInt16 readByte readBytes readUInt32 readUInt64 skipBytes =
-    System.Diagnostics.Debug.Assert((string <| readBytes 4 = "FTEX"), "Error: Invalid signature.")
+    System.Diagnostics.Debug.Assert((System.Text.Encoding.UTF8.GetString(readBytes 4) = "FTEX"), "Error: Invalid signature.")
     System.Diagnostics.Debug.Assert((System.BitConverter.ToSingle(readBytes 4, 0) = 2.03f), "Error: Invalid version number.")
 
     let pixelFormatType = readUInt16()
@@ -59,12 +59,12 @@ let private readHeader readUInt16 readByte readBytes readUInt32 readUInt64 skipB
     let height = readUInt16()
     let depth = readUInt16()
     let mipMapCount = readByte()
-    let nrtFlag = readUInt16()
-    let unknownFlags = enum <| (int <| readUInt16())
+    let nrtFlag = readByte()
+    let unknownFlags = enum << int <| readUInt16()
 
     skipBytes 8
 
-    let textureType = enum <| (int32 <| readUInt32())
+    let textureType = enum << int32 <| readUInt32()
     let extensionFileCount = readByte()
     let additionalExtensionFileCount = readByte()
 
@@ -125,7 +125,7 @@ let private getCompressed (mipmapDescriptions: MipmapDescription[]) =
     let totalUncompressedFileSize = mipmapDescriptions.[0].UncompressedFileSize
     let totalCompressedFileSize = mipmapDescriptions.[0].CompressedFileSize
 
-    totalUncompressedFileSize = totalCompressedFileSize
+    totalUncompressedFileSize <> totalCompressedFileSize
     
 /// <summary>
 /// Information on a given chunk for a given mipmap
@@ -158,10 +158,18 @@ let private readMipmapChunkDescriptions chunkCount readUInt16 readUInt32 =
 /// <param name="readUInt32">Function to read a uint32.</param>
 /// <param name="readBytes">Function to read a number of bytes.</param>
 /// <returns>The parsed mipmap.</returns>
-let private readChunkedMipmap mipmapDescription readUInt16 readUInt32 readBytes =
+let private readChunkedMipmap mipmapDescription readUInt16 readUInt32 (readBytes : int -> byte[]) alignStream isCompressed =
+    alignStream << int64 <| mipmapDescription.Offset
+    
     let mipmapChunkDescriptions = readMipmapChunkDescriptions (int <| mipmapDescription.ChunkCount) readUInt16 readUInt32
 
-    if mipmapChunkDescriptions.[0].CompressedChunkSize < mipmapChunkDescriptions.[0].CompressedChunkSize then readBytes mipmapChunkDescriptions.[mipmapChunkDescriptions.Length].CompressedChunkSize else readBytes mipmapChunkDescriptions.[mipmapChunkDescriptions.Length].UncompressedChunkSize
+    match isCompressed with
+    | true -> mipmapChunkDescriptions
+               |> Array.map (fun chunkDesc -> readBytes << int <| chunkDesc.CompressedChunkSize)
+               |> Array.concat
+    | false -> mipmapChunkDescriptions
+               |> Array.map (fun chunkDesc -> readBytes << int <| chunkDesc.UncompressedChunkSize)
+               |> Array.concat
 
 /// <summary>
 /// A GrTexture mipmap, with the number of chunks and then the raw DDS texture data.
@@ -179,11 +187,11 @@ type public Mipmap = {
 /// <param name="readUInt32">Function to read a uint32.</param>
 /// <param name="readBytes">Function to read a number of bytes.</param>
 /// <returns>Returns a parsed mipmap level.</returns>
-let private readMipmap (mipmapDescription : MipmapDescription) readUInt16 readUInt32 readBytes =
+let private readMipmap (mipmapDescription : MipmapDescription) readUInt16 readUInt32 readBytes alignStream isCompressed =
     { ChunkCount = mipmapDescription.ChunkCount;
     Data = match mipmapDescription.ChunkCount with
-           | 0us -> readBytes (int <| mipmapDescription.UncompressedFileSize) //If the file doesn't have any 
-           | i -> readChunkedMipmap mipmapDescription readUInt16 readUInt32 (fun i -> readBytes (int <| i)) }
+           | 0us -> readBytes (int <| mipmapDescription.UncompressedFileSize) //If the file doesn't have any chunks, the whole file is just a block of raw data
+           | _ -> readChunkedMipmap mipmapDescription readUInt16 readUInt32 (fun i -> readBytes (int <| i)) alignStream isCompressed }
 
 /// <summmary>
 /// Input functions to the Read function.
@@ -201,6 +209,8 @@ type public ReadFunctions = {
     ReadBytes : Func<int, byte[]>
     /// Function to skip a number of bytes.
     SkipBytes : Action<int>
+    /// Function to align the stream to a given offset.
+    AlignStream : Action<int64>
 }
 
 /// <summmary>
@@ -213,6 +223,7 @@ type internal ConvertedReadFunctions = {
     ReadByte : unit -> byte
     ReadBytes : int -> byte[]
     SkipBytes : int -> unit
+    AlignStream : int64 -> unit
 }
 
 /// <summmary>
@@ -227,13 +238,15 @@ let private convertReadFunctions (rawReadFunctions : ReadFunctions) =
     if rawReadFunctions.ReadByte |> isNull then nullArg "ReadByte"
     if rawReadFunctions.ReadBytes |> isNull then nullArg "ReadBytes"
     if rawReadFunctions.SkipBytes |> isNull then nullArg "SkipBytes"
+    if rawReadFunctions.AlignStream |> isNull then nullArg "AlignStream"
 
     { ConvertedReadFunctions.ReadUInt16 = rawReadFunctions.ReadUInt16.Invoke;
     ReadUInt32 = rawReadFunctions.ReadUInt32.Invoke;
     ReadUInt64 = rawReadFunctions.ReadUInt64.Invoke;
     ReadByte = rawReadFunctions.ReadByte.Invoke;
     ReadBytes = rawReadFunctions.ReadBytes.Invoke;
-    SkipBytes = rawReadFunctions.SkipBytes.Invoke }
+    SkipBytes = rawReadFunctions.SkipBytes.Invoke;
+    AlignStream = rawReadFunctions.AlignStream.Invoke }
 
 /// <summary>
 /// A texture used by the Fox Engine.
@@ -261,8 +274,8 @@ let public Read (readFunctions : ReadFunctions[]) =
 
     let header = readHeader ftexReadFunctions.ReadUInt16 ftexReadFunctions.ReadByte ftexReadFunctions.ReadBytes ftexReadFunctions.ReadUInt32 ftexReadFunctions.ReadUInt64 ftexReadFunctions.SkipBytes
 
-    let extensionFileCount = int <| (header.ExtensionFileCount - 1uy)
-    System.Diagnostics.Debug.Assert((readFunctions.Length = extensionFileCount), String.Concat("Error: Can't find .", extensionFileCount, ".ftexs."))
+    let extensionFileCount = int <| header.ExtensionFileCount
+    System.Diagnostics.Debug.Assert(((readFunctions.Length - 1) = extensionFileCount), String.Concat("Error: Can't find .", extensionFileCount, ".ftexs."))
 
     let mipmapDescriptions = readMipmapDescriptions (header.MipMapCount |> int) ftexReadFunctions.ReadUInt32 ftexReadFunctions.ReadByte ftexReadFunctions.ReadUInt16
 
@@ -271,7 +284,7 @@ let public Read (readFunctions : ReadFunctions[]) =
     let mipmaps = mipmapDescriptions
                   |> Array.map (fun mipmapDescription -> let ftexsIndex = int <| mipmapDescription.FtexFileNumber
 
-                                                         readMipmap mipmapDescription convertedReadFunctions.[ftexsIndex].ReadUInt16 convertedReadFunctions.[ftexsIndex].ReadUInt32 convertedReadFunctions.[ftexsIndex].ReadBytes
+                                                         readMipmap mipmapDescription convertedReadFunctions.[ftexsIndex].ReadUInt16 convertedReadFunctions.[ftexsIndex].ReadUInt32 convertedReadFunctions.[ftexsIndex].ReadBytes convertedReadFunctions.[ftexsIndex].AlignStream compressed
                                                          )
 
     { Height = header.Height;
@@ -281,4 +294,6 @@ let public Read (readFunctions : ReadFunctions[]) =
     PixelFormat = header.PixelFormatType;
     TextureType = header.TextureType;
     UnknownFlags = header.UnknownFlags;
-    DDSData = mipmaps |> Array.map (fun mipmap -> mipmap.Data) |> Array.concat }
+    DDSData = mipmaps
+              |> Array.map (fun mipmap -> mipmap.Data)
+              |> Array.concat }
