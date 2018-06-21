@@ -71,8 +71,7 @@
     <Compile Include="FoxRig\FoxRig.fs" />
     <Content Include="packages.config" />
     <Compile Include="FormVariation\FormVariation.fs" />
-    <Compile Include="FoxTexture\FoxTexture.fs" />
-    <Compile Include="FoxTexture\FoxTextureExtension.fs" />
+    <Compile Include="GrTexture\GrTexture.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core, Version=4.4.3.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">

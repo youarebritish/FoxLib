@@ -252,7 +252,7 @@ type public GrTexture = {
 /// <summmary>
 /// Parses a GrTexture from .ftex and .#.ftexs format.
 /// </summmary>
-/// <param name="readFunctions">Function to read a data type from the input.</param>
+/// <param name="readFunctions">An array of functions to read data types from the input. Read uses one readFunction array entry for each file.</param>
 /// <returns>The parsed GrTexture.</returns>
 let public Read (readFunctions : ReadFunctions[]) =
     let convertedReadFunctions = readFunctions |> Array.map convertReadFunctions
@@ -260,6 +260,9 @@ let public Read (readFunctions : ReadFunctions[]) =
     let ftexReadFunctions = convertedReadFunctions.[0]
 
     let header = readHeader ftexReadFunctions.ReadUInt16 ftexReadFunctions.ReadByte ftexReadFunctions.ReadBytes ftexReadFunctions.ReadUInt32 ftexReadFunctions.ReadUInt64 ftexReadFunctions.SkipBytes
+
+    let extensionFileCount = int <| (header.ExtensionFileCount - 1uy)
+    System.Diagnostics.Debug.Assert((readFunctions.Length = extensionFileCount), String.Concat("Error: Can't find .", extensionFileCount, ".ftexs."))
 
     let mipmapDescriptions = readMipmapDescriptions (header.MipMapCount |> int) ftexReadFunctions.ReadUInt32 ftexReadFunctions.ReadByte ftexReadFunctions.ReadUInt16
 
