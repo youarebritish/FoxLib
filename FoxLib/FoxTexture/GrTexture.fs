@@ -30,9 +30,9 @@ type private Header = {
     Depth : uint16;
     MipMapCount : byte;
     NrtFlag : uint16;
-    UnknownFlags : FtexUnknownFlags;
+    UnknownFlags : UnknownFlags;
     // Skip 8 bytes for an int with a value of 1 and then an int with a value of 0
-    TextureType : FtexTextureType;
+    TextureType : TextureType;
     ExtensionFileCount : byte;
     AdditionalExtensionFileCount : byte;
     // Skip 14 bytes
@@ -244,8 +244,8 @@ type public GrTexture = {
     Depth : uint16
     Compressed : bool
     PixelFormat : uint16
-    TextureType : FtexTextureType
-    UnknownFlags : FtexUnknownFlags
+    TextureType : TextureType
+    UnknownFlags : UnknownFlags
     DDSData : byte[]
 }
 
