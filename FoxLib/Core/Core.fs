@@ -167,7 +167,7 @@ type public Entity = {
     ClassName : string
     Address : uint32
     Id : uint32
-    ClassId : uint16
+    ClassId : int16
     Version : uint16
     StaticProperties : PropertyInfo[]
     DynamicProperties : PropertyInfo[]

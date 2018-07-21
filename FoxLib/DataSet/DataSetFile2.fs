@@ -206,15 +206,16 @@ let private readProperty readDataType readContainerType (tryUnhashString : StrCo
 /// <param name="readPropertyInfoType">Function to read a PropertyInfo's type.</param>
 /// <param name="readContainerType">Function to read a PropertyInfo container's type.</param>
 /// <param name="unhashString">Function to unhash a string.</param>
+/// <param name="readInt16">Function to read a int16.</param>
 /// <param name="readUInt16">Function to read a uint16.</param>
 /// <param name="readUInt32">Function to read a uint32.</param>
 /// <param name="readUInt64">Function to read a uint64.</param>
 /// <param name="skipBytes">Function to skip a number of bytes.</param>
 /// <param name="alignRead">Function to align the reader.</param>
-let private readEntity readContainerFunc readPropertyInfoType readContainerType (unhashString : StrCodeHash -> string) readUInt16 readUInt32 readUInt64 skipBytes alignRead =
+let private readEntity readContainerFunc readPropertyInfoType readContainerType (unhashString : StrCodeHash -> string) readInt16 readUInt16 readUInt32 readUInt64 skipBytes alignRead =
     skipBytes 2
     
-    let classId = readUInt16()
+    let classId = readInt16()
 
     skipBytes 6
 
@@ -432,7 +433,7 @@ let public Read readFunctions =
                                                                         convertedReadFunctions.ReadBool)
 
     [|1u..headerData.EntityCount|]
-    |> Array.map (fun _ -> readEntity readContainerFunc readPropertyInfoType readContainerType unhashString convertedReadFunctions.ReadUInt16 convertedReadFunctions.ReadUInt32 convertedReadFunctions.ReadUInt64 convertedReadFunctions.SkipBytes convertedReadFunctions.AlignRead)
+    |> Array.map (fun _ -> readEntity readContainerFunc readPropertyInfoType readContainerType unhashString convertedReadFunctions.ReadInt16 convertedReadFunctions.ReadUInt16 convertedReadFunctions.ReadUInt32 convertedReadFunctions.ReadUInt64 convertedReadFunctions.SkipBytes convertedReadFunctions.AlignRead)
     |> Array.toSeq
 
 let private stringEncoding = System.Text.Encoding.UTF8;
@@ -564,7 +565,7 @@ type private EntityHeaderWriteData = {
     Address : uint32
     Version : uint16
     ClassName : string
-    ClassId : uint16
+    ClassId : int16
     EntityId : uint32
     StaticPropertiesCount : uint16
     DynamicPropertiesCount : uint16
@@ -572,9 +573,9 @@ type private EntityHeaderWriteData = {
     DataSize : uint32
 }
 
-let private writeEntityHeader entityHeaderData writeUInt16 writeUInt32 writeHash writeZeros alignWrite =
+let private writeEntityHeader entityHeaderData writeInt16 writeUInt16 writeUInt32 writeHash writeZeros alignWrite =
     writeUInt16 entityHeaderData.HeaderSize
-    writeUInt16 entityHeaderData.ClassId
+    writeInt16 entityHeaderData.ClassId
     writeZeros 2u
     writeUInt32 0x746e65u
     writeUInt32 entityHeaderData.Address
@@ -744,6 +745,7 @@ let public Write entities (writeFunctions : WriteFunctions) =
     
     let writeEntityHeaderFunc entityHeaderData = writeEntityHeader
                                                     entityHeaderData
+                                                    convertedWriteFunctions.WriteInt16
                                                     convertedWriteFunctions.WriteUInt16
                                                     convertedWriteFunctions.WriteUInt32
                                                     convertedWriteFunctions.WriteUInt64
