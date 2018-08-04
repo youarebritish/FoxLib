@@ -260,3 +260,5 @@ paket-files/
 __pycache__/
 *.pyc
 /TestFoxLib/test repacked.frt
+*.ftexs
+*.ftex
