@@ -280,13 +280,18 @@ let public Read (readFunctions : ReadFunctions[]) =
     let extensionFileCount = int <| header.ExtensionFileCount
     System.Diagnostics.Debug.Assert(((readFunctions.Length - 1) = extensionFileCount), String.Concat("Error: Can't find .", extensionFileCount, ".ftexs."))
 
-    let mipmapDescriptions = readMipmapDescriptions (header.MipMapCount |> int) ftexReadFunctions.ReadUInt32 ftexReadFunctions.ReadByte ftexReadFunctions.ReadUInt16
+    let faceCount = if header.TextureType = TextureType.Cube then 6 else 1
+
+    let mipmapDescriptions = [|1..faceCount|]
+                              |> Array.map (fun _ -> readMipmapDescriptions (header.MipMapCount |> int) ftexReadFunctions.ReadUInt32 ftexReadFunctions.ReadByte ftexReadFunctions.ReadUInt16)
 
     let mipmaps = mipmapDescriptions
-                  |> Array.map (fun mipmapDescription -> let ftexsIndex = int <| mipmapDescription.FtexsFileNumber
-
-                                                         readMipmap mipmapDescription convertedReadFunctions.[ftexsIndex].ReadUInt16 convertedReadFunctions.[ftexsIndex].ReadUInt32 convertedReadFunctions.[ftexsIndex].ReadBytes convertedReadFunctions.[ftexsIndex].AlignStream
-                                                         )
+                  |> Array.map (fun mipmapDescriptions -> mipmapDescriptions
+                                                          |> Array.map (fun mipmapDescription -> let ftexsIndex = int <| mipmapDescription.FtexsFileNumber
+                                                                                                 readMipmap mipmapDescription convertedReadFunctions.[ftexsIndex].ReadUInt16 convertedReadFunctions.[ftexsIndex].ReadUInt32 convertedReadFunctions.[ftexsIndex].ReadBytes convertedReadFunctions.[ftexsIndex].AlignStream
+                                                                                                 )
+                                                          )
+                  |> Array.concat
 
     { Height = header.Height;
     Width = header.Width;
@@ -295,7 +300,7 @@ let public Read (readFunctions : ReadFunctions[]) =
     NrtFlag = header.NrtFlag;
     TextureType = header.TextureType;
     UnknownFlags = header.UnknownFlags;
-    MipMapCount = byte <| mipmaps.Length;
+    MipMapCount = byte <| mipmapDescriptions.[0].Length;
     DDSData = mipmaps
               |> Array.map (fun mipmap -> mipmap.Data)
               |> Array.concat }
