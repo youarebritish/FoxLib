@@ -63,16 +63,16 @@ type private CNPConnection = {
 type public TextureSwap = {
     MaterialInstanceHash : StrCode32Hash
     TextureTypeHash : StrCode32Hash
-    TextureFileHash : StrCode64Hash
+    TextureFileHash : StrCodeHash
 }
 
 /// <summary>
 /// An attachment to a bone.
 /// </summary>
 type public BoneAttachment = {
-    ModelFileHash : StrCode64Hash
-    FrdvFileHash : Nullable<StrCode64Hash>
-    SimFileHash : Nullable<StrCode64Hash>
+    ModelFileHash : StrCodeHash
+    FrdvFileHash : Nullable<StrCodeHash>
+    SimFileHash : Nullable<StrCodeHash>
 }
 
 /// <summary>
@@ -80,9 +80,9 @@ type public BoneAttachment = {
 /// </summary>
 type public CNPAttachment = {
     CNPHash : StrCode32Hash
-    ModelFileHash : StrCode64Hash
-    FrdvFileHash : Nullable<StrCode64Hash>
-    SimFileHash : Nullable<StrCode64Hash>
+    ModelFileHash : StrCodeHash
+    FrdvFileHash : Nullable<StrCodeHash>
+    SimFileHash : Nullable<StrCodeHash>
 }
 
 /// <summary>
@@ -252,7 +252,7 @@ let private readExternalFileHashes readHash section4Entries =
 /// </summary>
 /// <param name="materialInstance">The MaterialInstance.</param>
 /// <param name="fileHashes">A list of hashed file names as StrCode64 hashes.</param>
-let private makeTextureSwap (materialInstance : MaterialInstance ) (fileHashes : StrCode64Hash[]) = 
+let private makeTextureSwap (materialInstance : MaterialInstance ) (fileHashes : StrCodeHash[]) = 
     [|1..materialInstance.ExternalFileListIndex.Length|]
      |> Array.map (fun index -> { MaterialInstanceHash = materialInstance.MaterialInstanceHash.[(index - 1)]; 
                                 TextureTypeHash = materialInstance.TextureTypeHash.[(index - 1)]; 
@@ -263,17 +263,17 @@ let private makeTextureSwap (materialInstance : MaterialInstance ) (fileHashes :
 /// </summary>
 /// <param name="boneConnections">The BoneConnection array.</param>
 /// <param name="fileHashes">A list of hashed file names as StrCode64 hashes.</param>
-let private makeBoneAttachment (boneConnections : BoneConnection[]) (fileHashes : StrCode64Hash[]) = 
+let private makeBoneAttachment (boneConnections : BoneConnection[]) (fileHashes : StrCodeHash[]) = 
     boneConnections
     |> Array.map (fun boneConnection -> let modelFileHash = fileHashes.[boneConnection.ExternalFileListIndex |> int]
 
                                         let frdvFileHash = match (boneConnection.ExternalFileListIndexFrdv |> int) with
                                                            | i when i = 0xFFFF -> System.Nullable()
-                                                           | _ -> new Nullable<StrCode64Hash>(fileHashes.[boneConnection.ExternalFileListIndexFrdv |> int])
+                                                           | _ -> new Nullable<StrCodeHash>(fileHashes.[boneConnection.ExternalFileListIndexFrdv |> int])
 
                                         let simFileHash = match (boneConnection.ExternalFileListIndexSim |> int) with
                                                           | i when i = 0xFFFF -> System.Nullable()
-                                                          | _ -> new Nullable<StrCode64Hash>(fileHashes.[boneConnection.ExternalFileListIndexSim |> int])
+                                                          | _ -> new Nullable<StrCodeHash>(fileHashes.[boneConnection.ExternalFileListIndexSim |> int])
         
                                         { ModelFileHash = modelFileHash;
                                         FrdvFileHash = frdvFileHash;
@@ -284,15 +284,15 @@ let private makeBoneAttachment (boneConnections : BoneConnection[]) (fileHashes 
 /// </summary>
 /// <param name="CNPConnections">The CNPConnection array.</param>
 /// <param name="fileHashes">A list of hashed file names as StrCode64 hashes.</param>
-let private makeCNPAttachment (CNPConnections : CNPConnection[]) (fileHashes : StrCode64Hash[]) = 
+let private makeCNPAttachment (CNPConnections : CNPConnection[]) (fileHashes : StrCodeHash[]) = 
     CNPConnections
     |> Array.map (fun CNPConnection -> let frdvFileHash = match (CNPConnection.ExternalFileListIndexFrdv |> int) with
                                                           | i when i = 0xFFFF -> System.Nullable()
-                                                          | _ -> new Nullable<StrCode64Hash>(fileHashes.[CNPConnection.ExternalFileListIndexFrdv |> int])
+                                                          | _ -> new Nullable<StrCodeHash>(fileHashes.[CNPConnection.ExternalFileListIndexFrdv |> int])
 
                                        let simFileHash = match (CNPConnection.ExternalFileListIndexSim |> int) with
                                                           | i when i = 0xFFFF -> System.Nullable()
-                                                          | _ -> new Nullable<StrCode64Hash>(fileHashes.[CNPConnection.ExternalFileListIndexSim |> int])
+                                                          | _ -> new Nullable<StrCodeHash>(fileHashes.[CNPConnection.ExternalFileListIndexSim |> int])
         
                                        { CNPHash = CNPConnection.CNPHash;
                                        ModelFileHash = fileHashes.[CNPConnection.ExternalFileListIndex |> int];
@@ -389,7 +389,7 @@ let private nullValue = 0xFFFFus
 /// </summary>
 /// <param name="hash">The hash to add to the fileList.</param>
 /// <returns>The index of the hash in the file list.</returns>
-let private getFileIndexFromList (fileList : StrCode64Hash list byref) hash =
+let private getFileIndexFromList (fileList : StrCodeHash list byref) hash =
     let index = fileList.Length |> uint16
 
     fileList <- hash :: fileList
@@ -708,7 +708,7 @@ let private convertWriteFunctions (rawWriteFunctions : WriteFunctions) =
 /// <param name="formVariation">The form variation to write.</param>
 /// <param name="writeFunctions">Functions to write various data types.</param>
 let public Write (formVariation : FormVariation) writeFunctions = 
-    let mutable (fileList : StrCode64Hash list) = List.empty
+    let mutable (fileList : StrCodeHash list) = List.empty
 
     let getFileIndex hash = getFileIndexFromList &fileList hash 
 
