@@ -11,8 +11,8 @@
     <OutputType>Library</OutputType>
     <RootNamespace>TestFoxLib</RootNamespace>
     <AssemblyName>TestFoxLib</AssemblyName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
-    <TargetFSharpCoreVersion>4.4.1.0</TargetFSharpCoreVersion>
+	<UseStandardResourceNames>true</UseStandardResourceNames>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Name>TestFoxLib</Name>
     <NuGetPackageImportStamp>
@@ -42,18 +42,9 @@
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
   </PropertyGroup>
-  <Choose>
-    <When Condition="'$(VisualStudioVersion)' == '11.0'">
-      <PropertyGroup Condition=" '$(FSharpTargetsPath)' == '' AND Exists('$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets') ">
-        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets</FSharpTargetsPath>
-      </PropertyGroup>
-    </When>
-    <Otherwise>
-      <PropertyGroup Condition=" '$(FSharpTargetsPath)' == '' AND Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets') ">
-        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets</FSharpTargetsPath>
-      </PropertyGroup>
-    </Otherwise>
-  </Choose>
+  <PropertyGroup Condition=" '$(FSharpTargetsPath)' == '' AND Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets') ">
+    <FSharpTargetsPath>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets</FSharpTargetsPath>
+  </PropertyGroup>
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="Fox\Hashing.fs" />
@@ -69,6 +60,11 @@
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <!--<Reference Include="FSharp.Core">
+      <Name>FSharp.Core</Name>
+      <AssemblyName>FSharp.Core.dll</AssemblyName>
+      <HintPath>$(MSBuildProgramFiles32)\Reference Assemblies\Microsoft\FSharp\.NETFramework\v4.0\$(TargetFSharpCoreVersion)\FSharp.Core.dll</HintPath>
+    </Reference>-->
     <Reference Include="mscorlib" />
     <Reference Include="nunit.framework">
       <HintPath>..\packages\NUnit.3.11.0\lib\net45\nunit.framework.dll</HintPath>
