@@ -259,31 +259,7 @@ paket-files/
 # Python Tools for Visual Studio (PTVS)
 __pycache__/
 *.pyc
-/TestFoxLib/test repacked.frt
-TestFoxLib/test.fox2
-TestFoxLib/resident_common_settings.fox2
-TestFoxLib/ombs_common_env.fox2
-TestFoxLib/mtbs_ly003_cl00_item.fox2
-TestFoxLib/mtbs_ly001_cl02_item.fox2
-TestFoxLib/mafr_138_121_path.fox2
-TestFoxLib/gntn_common_gimmick.fox2
-TestFoxLib/afgh_enemyBase_asset.fox2
-TestFoxLib/afgh_citadel_0.tcvp
-TestFoxLib/gntn_common_gimmick_REPACKED.fox2
-TestFoxLib/gntn_common_gimmick_REPACKED.fox2.xml
-TestFoxLib/mafr_138_121_path.fox2.xml
-TestFoxLib/mafr_138_121_path_REPACKED.fox2
-TestFoxLib/mafr_138_121_path_REPACKED.fox2.xml
-TestFoxLib/s10081_route.fox2
-TestFoxLib/s10081_route.fox2.xml
-TestFoxLib/s10081_route_REPACKED.fox2
-TestFoxLib/s10081_route_REPACKED.fox2.xml
-TestFoxLib/gntn_common_gimmick.fox2.xml
-TestFoxLib/resident_common_settings.fox2.xml
-TestFoxLib/resident_common_settings_REPACKED.fox2
-TestFoxLib/resident_common_settings_REPACKED.fox2.xml
-TestFoxLib/afgh_enemyBase_asset.fox2.xml
-TestFoxLib/afgh_enemyBase_asset_REPACKED.fox2
-TestFoxLib/afgh_enemyBase_asset_REPACKED.fox2.xml
 *.fox2
 *.xml
+*.ftexs
+*.ftex

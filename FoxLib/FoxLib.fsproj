@@ -77,10 +77,14 @@
     <Compile Include="DataSet\DataSetFile2.fs" />
     <Content Include="packages.config" />
     <Compile Include="FormVariation\FormVariation.fs" />
+    <Compile Include="GrTexture\GrTexture.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="CityHash">
       <HintPath>..\packages\CityHash.Net.Legacy.0.1.2.0\lib\net45\CityHash.dll</HintPath>
+    </Reference>
+    <Reference Include="ICSharpCode.SharpZipLib">
+      <HintPath>..\References\ICSharpCode.SharpZipLib.dll</HintPath>
     </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="mscorlib" />
